@@ -302,7 +302,14 @@ export function buildGModel(look, spec = {}) {
   inner.position.y = -sz.minY * scale + (look.y ?? 0);
   if (look.sx) inner.scale.x *= look.sx;
   holder.add(inner); root.add(holder);
-  root.traverse(o => { if (o.isMesh) { o.castShadow = true; o.receiveShadow = false; o.frustumCulled = !o.isSkinnedMesh; } });
+  root.traverse(o => {
+    if (!o.isMesh) return;
+    // only the body casts a shadow; small rigid attachments (weapons, hats) would just cost draw calls
+    o.castShadow = o.isSkinnedMesh || family !== 'hum'; o.receiveShadow = false;
+    o.frustumCulled = true;
+    // skinned meshes cull against their bind-pose sphere, padded for animation
+    if (o.isSkinnedMesh) { o.computeBoundingSphere(); o.boundingSphere.radius *= 1.5; }
+  });
   const height = sz.h * scale, radius = sz.w * scale * 0.4;
   const model = {
     gltf: true, rig: family === 'hum' ? 'humanoid' : family, look, mesh: root, inner: holder, materials: mats, style,

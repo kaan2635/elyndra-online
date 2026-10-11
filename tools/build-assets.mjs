@@ -6,7 +6,7 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 import { NodeIO, Document } from '@gltf-transform/core';
 import { ALL_EXTENSIONS } from '@gltf-transform/extensions';
-import { mergeDocuments, dedup, prune, resample, weld, meshopt, unpartition, simplify } from '@gltf-transform/functions';
+import { mergeDocuments, dedup, prune, resample, weld, meshopt, unpartition, simplify, join, palette } from '@gltf-transform/functions';
 import { MeshoptEncoder, MeshoptDecoder, MeshoptSimplifier } from 'meshoptimizer';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
@@ -50,6 +50,71 @@ async function finish(doc, file, { anim = false } = {}) {
   fs.mkdirSync(path.dirname(file), { recursive: true });
   await io.write(file, doc);
   console.log('  wrote', path.relative(ROOT, file), kb(file));
+}
+// Merge skinned sibling meshes that share skin + material into one primitive (one draw call).
+// Skinned vertices live in bind space, so node transforms don't matter and buffers concatenate directly.
+function mergeSkinned(doc) {
+  const root = doc.getRoot();
+  const groups = new Map();
+  for (const n of root.listNodes()) {
+    const m = n.getMesh(), sk = n.getSkin(); if (!m || !sk || m.listPrimitives().length !== 1) continue;
+    const prim = m.listPrimitives()[0];
+    const parent = root.listNodes().find(p => p.listChildren().includes(n)) || root.getDefaultScene();
+    const key = [sk, prim.getMaterial(), parent].map(o => o && root.listNodes().indexOf(o) + ':' + (o.getName?.() || '')).join('|') + '|' + prim.listSemantics().sort().join(',');
+    if (!groups.has(key)) groups.set(key, []);
+    groups.get(key).push(n);
+  }
+  for (const nodes of groups.values()) {
+    if (nodes.length < 2) continue;
+    const prims = nodes.map(n => n.getMesh().listPrimitives()[0]);
+    const base = prims[0];
+    const out = {};
+    for (const sem of base.listSemantics()) {
+      const accs = prims.map(p => p.getAttribute(sem));
+      const A = accs[0].getArray().constructor;
+      const total = accs.reduce((a, x) => a + x.getArray().length, 0);
+      const arr = new A(total); let o = 0;
+      for (const x of accs) { arr.set(x.getArray(), o); o += x.getArray().length; }
+      out[sem] = doc.createAccessor().setType(accs[0].getType()).setArray(arr).setNormalized(accs[0].getNormalized()).setBuffer(accs[0].getBuffer());
+    }
+    let vOff = 0; const idx = [];
+    for (const p of prims) { const ia = p.getIndices().getArray(); for (let i = 0; i < ia.length; i++) idx.push(ia[i] + vOff); vOff += p.getAttribute('POSITION').getCount(); }
+    const IA = vOff > 65535 ? Uint32Array : Uint16Array;
+    const merged = doc.createPrimitive().setMaterial(base.getMaterial()).setIndices(doc.createAccessor().setType('SCALAR').setArray(new IA(idx)).setBuffer(base.getIndices().getBuffer()));
+    for (const [sem, acc] of Object.entries(out)) merged.setAttribute(sem, acc);
+    const mesh = doc.createMesh(nodes[0].getMesh().getName() + '_merged').addPrimitive(merged);
+    nodes[0].setMesh(mesh).setName(nodes[0].getName().replace(/_(Body|ArmLeft|ArmRight|LegLeft|LegRight|Head)$/, '') + '_Body');
+    for (const n of nodes.slice(1)) n.dispose();
+  }
+}
+// Concatenate primitives (same material & attribute set) into one; returns the merged primitive.
+function concatPrims(doc, prims) {
+  const base = prims[0];
+  const merged = doc.createPrimitive().setMaterial(base.getMaterial());
+  const widest = arrs => arrs.some(a => a instanceof Float32Array) ? Float32Array : arrs.some(a => a instanceof Uint32Array) ? Uint32Array : arrs.some(a => a instanceof Uint16Array || a instanceof Int16Array) ? (arrs.some(a => a instanceof Int16Array) ? Int16Array : Uint16Array) : arrs[0].constructor;
+  for (const sem of base.listSemantics()) {
+    const accs = prims.map(p => p.getAttribute(sem));
+    const norm = accs.some(a => a.getNormalized());
+    // normalised integer data mixed with floats must be expanded to real values
+    const arrs = accs.map(a => (norm && !(a.getArray() instanceof Float32Array)) || accs.some(b => b.getArray().constructor !== a.getArray().constructor) ? Float32Array.from({ length: a.getCount() * a.getElementSize() }, (_, i) => a.getElement(Math.floor(i / a.getElementSize()), [])[i % a.getElementSize()]) : a.getArray());
+    const A = widest(arrs);
+    const arr = new A(arrs.reduce((t, x) => t + x.length, 0)); let o = 0;
+    for (const x of arrs) { arr.set(x, o); o += x.length; }
+    merged.setAttribute(sem, doc.createAccessor().setType(accs[0].getType()).setArray(arr).setNormalized(A !== Float32Array && norm).setBuffer(accs[0].getBuffer()));
+  }
+  let vOff = 0; const idx = [];
+  for (const p of prims) { const ia = p.getIndices() ? p.getIndices().getArray() : Array.from({ length: p.getAttribute('POSITION').getCount() }, (_, i) => i); for (let i = 0; i < ia.length; i++) idx.push(ia[i] + vOff); vOff += p.getAttribute('POSITION').getCount(); }
+  merged.setIndices(doc.createAccessor().setType('SCALAR').setArray(vOff > 65535 ? new Uint32Array(idx) : new Uint16Array(idx)).setBuffer(base.getAttribute('POSITION').getBuffer()));
+  return merged;
+}
+// within each mesh, merge primitives that share a material and attribute layout
+function mergeMeshPrims(doc) {
+  for (const mesh of doc.getRoot().listMeshes()) {
+    const prims = mesh.listPrimitives(); if (prims.length < 2) continue;
+    const groups = new Map();
+    for (const p of prims) { const k = (p.getMaterial()?.getName() || '') + '|' + p.listSemantics().sort().join(',') + '|' + p.getMode(); if (!groups.has(k)) groups.set(k, []); groups.get(k).push(p); }
+    for (const g of groups.values()) { if (g.length < 2) continue; const m = concatPrims(doc, g); for (const p of g) { mesh.removePrimitive(p); p.dispose(); } mesh.addPrimitive(m); }
+  }
 }
 const killAnim = a => { a.listChannels().forEach(c => c.dispose()); a.listSamplers().forEach(x => x.dispose()); a.dispose(); };
 // keep only listed animations, renaming them: map = { srcName: dstName }
@@ -136,6 +201,8 @@ async function characters() {
     stripAnims(doc);
     // weapons live in weapons.glb now
     for (const h of doc.getRoot().listNodes().filter(n => /^handslot/.test(n.getName()))) for (const ch of h.listChildren()) { h.removeChild(ch); ch.dispose(); }
+    // one draw call for the whole skinned body: merge the sibling part meshes (same skin & material)
+    mergeSkinned(doc);
     await finish(doc, path.join(OUT, 'chars', c.toLowerCase() + '.glb'));
   }
   // one shared animation library (skeleton pack has the superset of clips)
@@ -188,6 +255,10 @@ async function creatures() {
     const f = await get(url, path.join(SRC, 'mobs', key + '.glb'));
     const doc = await io.read(f);
     filterAnims(doc, map);
+    // many flat-coloured materials -> one palette-textured material, then fewer draw calls
+    await doc.transform(dedup(), palette({ min: 2 }));
+    mergeMeshPrims(doc);
+    mergeSkinned(doc);
     await finish(doc, path.join(OUT, 'mobs', key + '.glb'), { anim: true });
   });
 }

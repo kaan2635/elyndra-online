@@ -7,6 +7,7 @@ import { Terrain } from '../gfx/terrain.js';
 import { makeWater } from '../gfx/water.js';
 import { buildPropField, COLLIDE } from '../gfx/props.js';
 import { buildStructures } from '../gfx/buildings.js';
+import { buildBackdrop } from '../gfx/backdrop.js';
 import { genTown } from './townGen.js';
 import { U, basic } from '../gfx/materials.js';
 
@@ -32,6 +33,7 @@ export class World {
 
   // ------------------------------------------------------------ loading
   load(zoneDef) {
+    this.backdrop = null;
     this.unload();
     this.zone = zoneDef;
     if (zoneDef.dungeonLayout) {
@@ -85,8 +87,11 @@ export class World {
     // props
     const props = this.scatterProps(zoneDef, structures);
     for (const p of props) { const cr = COLLIDE[p.type]; if (cr) this.addCircle(p.x, p.z, cr * (p.s ?? 1)); }
-    this.props = buildPropField(props, zoneDef.propColors || {}, T.size, T.seed || 1, 3);
+    this.props = buildPropField(props, zoneDef.propColors || {}, T.size, T.seed || 1, 5);
     this.root.add(this.props);
+    // distant mountains & clouds
+    this.backdrop = buildBackdrop(zoneDef);
+    if (this.backdrop) this.root.add(this.backdrop);
     // minimap colour map
     this.mapCanvas = this.terrain.mapCanvas(256);
     emit('zoneLoaded', zoneDef);
@@ -114,7 +119,8 @@ export class World {
     const nz = T.noise;
     for (const rule of z.scatter || []) {
       const area = T.size * T.size * 0.8;
-      const count = Math.round(area * rule.d * (rule.type === 'grass' || rule.type === 'flowers' ? (G.engine?.q.grass ?? 1) : 1));
+      const q = G.engine?.q || {};
+      const count = Math.round(area * rule.d * (rule.type === 'grass' || rule.type === 'flowers' ? (q.grass ?? 1) : rule.small ? 1 : (q.trees ?? 1)));
       let placed = 0, tries = 0;
       while (placed < count && tries < count * 4) {
         tries++;
@@ -282,6 +288,7 @@ export class World {
   // ------------------------------------------------------------ update
   update(dt) {
     U.time.value = G.time;
+    this.backdrop?.userData.update?.(dt);
     const p = G.player;
     // see-through for anything between the camera and the hero
     if (p && G.camera) { U.camPos.value.copy(G.camera.position); U.focus.value.set(p.pos.x, p.pos.y + 1.1, p.pos.z); U.occ.value = 1; } else U.occ.value = 0;
@@ -307,10 +314,13 @@ export class World {
     if (this.props && this.terrain && (this._propT = (this._propT || 0) - dt) <= 0) {
       this._propT = 0.5;
       const lim = (G.engine.q.far * 0.42) ** 2;
+      const shadowLim = 45;
       for (const im of this.props.children) {
-        if (!im.userData.small) continue;
         const c = im.boundingSphere?.center; if (!c) continue;
-        im.visible = distSq2(c.x, c.z, fx, fz) < lim + im.boundingSphere.radius ** 2;
+        const d2 = distSq2(c.x, c.z, fx, fz), r2 = im.boundingSphere.radius ** 2;
+        // only chunks near the hero cast shadows (the shadow map only covers the area around it anyway)
+        if (im.userData.cast) im.castShadow = d2 < (shadowLim + im.boundingSphere.radius) ** 2;
+        if (im.userData.small) im.visible = d2 < lim + r2;
       }
     }
     // emissive windows brighter at night

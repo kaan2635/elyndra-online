@@ -276,7 +276,7 @@ export const PROP_BUILDERS = {
 // Which props sway in the wind and which are colliders
 const SWAY = { oak: 0.025, pine: 0.02, birch: 0.03, willow: 0.03, palm: 0.035, bush: 0.06, grass: 0.12, flowers: 0.12, reeds: 0.1, fern: 0.08, shadowtree: 0.02, bigshroom: 0.01 };
 export const COLLIDE = { grave: 0.45, oak: 0.45, pine: 0.4, birch: 0.3, willow: 0.5, palm: 0.35, dead: 0.3, bigshroom: 0.45, crystal: 0.6, cactus: 0.35, rock: 0.75, boulder: 1.8, spire: 1.0, stump: 0.4, log: 0.6, icespike: 0.8, lavarock: 0.8, shadowtree: 0.35, ruinpillar: 0.55 };
-const NO_SHADOW = new Set(['grass', 'flowers', 'reeds', 'fern', 'snowpile', 'bones', 'coral']);
+const NO_SHADOW = new Set(['grass', 'flowers', 'reeds', 'fern', 'snowpile', 'bones', 'coral', 'rock', 'bush', 'stump', 'log', 'grave', 'lavarock']);
 
 /**
  * Build instanced prop meshes.
@@ -317,7 +317,7 @@ export function buildPropField(list, opts, zoneSize, seed = 1, chunks = 4) {
     im.instanceMatrix.needsUpdate = true;
     if (im.instanceColor) im.instanceColor.needsUpdate = true;
     im.computeBoundingSphere();
-    im.castShadow = !NO_SHADOW.has(bk.type);
+    im.castShadow = !NO_SHADOW.has(bk.type); im.userData.cast = im.castShadow;
     im.receiveShadow = true;
     im.userData.small = NO_SHADOW.has(bk.type);
     group.add(im);

@@ -25,8 +25,8 @@ const GradeShader = {
 };
 
 const QUALITY = {
-  low: { pr: 0.85, shadows: false, shadowSize: 512, far: 120, grass: 0.25, antialias: false, post: false },
-  med: { pr: 1.25, shadows: true, shadowSize: 1024, far: 170, grass: 0.6, antialias: false, post: true },
+  low: { pr: 0.85, shadows: false, shadowSize: 512, far: 120, grass: 0.25, trees: 0.6, antialias: false, post: false },
+  med: { pr: 1.25, shadows: true, shadowSize: 1024, far: 170, grass: 0.6, trees: 0.85, antialias: false, post: true },
   high: { pr: 1.75, shadows: true, shadowSize: 2048, far: 220, grass: 1, antialias: true, post: true },
   ultra: { pr: 2, shadows: true, shadowSize: 2048, far: 280, grass: 1.3, antialias: true, post: true },
 };
