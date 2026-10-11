@@ -39,6 +39,7 @@ UI.register('settings', {
       b.append(h('div.muted', { style: { fontSize: '12px' } }, L('Düşük: en iyi pil ömrü ve performans. Yüksek/Ultra: gölgeler, daha uzun görüş mesafesi ve keskin görüntü.|Low: best battery and performance. High/Ultra: shadows, longer view distance and sharper image.')));
       const fps = h('div.row', ...[[0, L('Sınırsız|Unlimited')], [60, '60'], [30, '30']].map(([v, l]) => h('button.btn.small' + ((S.fpsCap || 0) === v ? '.primary' : '.ghost'), { onclick: () => { S.fpsCap = v; save(); UI.refresh('settings'); } }, l)));
       b.append(row(L('Kare hızı sınırı|Frame rate cap'), fps));
+      b.append(row(L('Işıltı ve renk efektleri|Bloom & colour effects'), toggle('post')));
       b.append(row(t('set_fps'), toggle('showFps')));
       b.append(row(t('set_fullscreen'), h('button.btn.small', { onclick: () => { const d = document.documentElement; if (!document.fullscreenElement) (d.requestFullscreen || d.webkitRequestFullscreen)?.call(d)?.catch?.(() => { }); else document.exitFullscreen?.(); try { screen.orientation?.lock?.('landscape').catch(() => { }); } catch (e) { } } }, '⛶')));
     } else if (w.tab === 'audio') {

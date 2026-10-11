@@ -92,7 +92,7 @@ export class Unit {
     if (!this.model) return;
     if (this.mount) {
       const sy = (this.mount.saddleY || 1.1) * (this.mount.scale || 1);
-      this.model.mesh.position.set(0, sy - (this.model.gltf ? this.model.height * 0.36 : 0.62 * (this.model.scale || 1)), this.model.gltf ? -0.2 : -0.1);
+      this.model.mesh.position.set(0, sy - (this.model.gltf ? this.model.height * 0.33 : 0.62 * (this.model.scale || 1)), this.model.gltf && this.mount.gltf ? 0.28 : -0.1);
     } else this.model.mesh.position.set(0, 0, 0);
   }
 

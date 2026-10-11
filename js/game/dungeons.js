@@ -6,6 +6,8 @@ import { rng, rand, randi, choice, clamp, distSq2, shadeHex, mixHex, Heap, fmtTi
 import { S, xpNeed } from '../data/classes.js';
 import { Builder, box, cyl, cone, octa, dodeca, jitter, ico, torus, sphere } from '../gfx/geom.js';
 import { lambert, basic } from '../gfx/materials.js';
+import { Assets } from '../gfx/assets.js';
+import { bake, appendBaked } from '../gfx/envmodels.js';
 import { spawnMonster } from './factory.js';
 import { genEquip, makeStack } from './items.js';
 import { h, UI, icon, uiIcon } from '../ui/ui.js';
@@ -33,6 +35,10 @@ const THEMES = {
 };
 
 // ------------------------------------------------------------ layout
+// KayKit Dungeon Remastered (CC0) pieces, tinted per theme
+const DKIT = 'env/dungeon.glb';
+const KIT_TINT = { cave: 0xb8a890, web: 0x9a8c8a, tomb: 0xffe2b0, ice: 0xc4dcff, fire: 0x9a7a70, shadow: 0xa898c8 };
+
 export class DungeonLayout {
   constructor(d, seed) {
     this.d = d; this.theme = THEMES[d.theme];
@@ -129,49 +135,107 @@ export class DungeonLayout {
     const N = this.N, c = this.cell, T = this.theme;
     const r = rng(7);
     const fb = new Builder(3), wb = new Builder(4), gb = new Builder(5);
-    // floor: per-cell tiles with slight colour variation
+    const kit = Assets.isLoaded(DKIT);
+    const mul = KIT_TINT[this.d.theme] ?? null;
+    const M = new THREE.Matrix4(), Q = new THREE.Quaternion(), UP = new THREE.Vector3(0, 1, 0), V = new THREE.Vector3(), S = new THREE.Vector3();
+    const put = (target, name, x, y, z, rot = 0, sx = 1, sy = sx, sz = sx) => {
+      const bk = bake(DKIT, name); if (!bk) return false;
+      Q.setFromAxisAngle(UP, rot); M.compose(V.set(x, y, z), Q, S.set(sx, sy, sz));
+      appendBaked(target, bk, M, mul); return true;
+    };
+    const FLOORS = this.d.theme === 'cave' || this.d.theme === 'web' ? ['floor_dirt_large', 'floor_dirt_large_rocky'] : this.d.theme === 'ice' ? ['floor_tile_large', 'floor_tile_small'] : ['floor_tile_small', 'floor_tile_small', 'floor_tile_small', 'floor_tile_small_broken_a', 'floor_tile_small_decorated', 'floor_tile_small_weeds_a'];
+    // floor: one kit tile per 2x2 cell
     for (let j = 0; j < N; j++) for (let i = 0; i < N; i++) {
       if (!this.isFloor(i, j)) continue;
       const p = this.toWorld(i, j);
-      const col = mixHex(T.floor[0], T.floor[1], r());
-      fb.add(box(c, 0.2, c), { p: [p.x, -0.1, p.z], color: col, shade: 0.04 });
+      if (kit) {
+        const name = FLOORS[Math.floor(r() * FLOORS.length)];
+        const big = /large/.test(name);
+        put(fb, name, p.x, -0.15, p.z, Math.floor(r() * 4) * Math.PI / 2, big ? 0.5 : 1, 1, big ? 0.5 : 1);
+      } else fb.add(box(c, 0.2, c), { p: [p.x, -0.1, p.z], color: mixHex(T.floor[0], T.floor[1], r()), shade: 0.04 });
     }
-    // walls: any non-floor cell touching floor
+    // walls: a 2m kit segment on every floor/wall edge, its inner face flush with the edge
     const H = 3.6;
-    for (let j = 0; j < N; j++) for (let i = 0; i < N; i++) {
-      if (this.isFloor(i, j)) continue;
-      let touch = false;
-      for (let dj = -1; dj <= 1 && !touch; dj++) for (let di = -1; di <= 1; di++) if (this.isFloor(i + di, j + dj)) { touch = true; break; }
-      if (!touch) continue;
-      const p = this.toWorld(i, j);
-      const hh = H + r() * 1.2;
-      if (this.d.theme === 'tomb' || this.d.theme === 'fire' || this.d.theme === 'shadow') wb.add(box(c, hh, c), { p: [p.x, hh / 2, p.z], color: [T.wall[0], T.wall[1]], shade: 0.06 });
-      else wb.add(jitter(box(c * 1.15, hh, c * 1.15), 0.35, i * 31 + j), { p: [p.x, hh / 2, p.z], color: [T.wall[0], T.wall[1]], shade: 0.1 });
+    const WALLS = ['wall_half', 'wall_half', 'wall_half', 'wall_half'];
+    const corners = new Map();
+    const torchSpots = [];
+    if (kit) {
+      for (let j = 0; j < N; j++) for (let i = 0; i < N; i++) {
+        if (!this.isFloor(i, j)) continue;
+        const p = this.toWorld(i, j);
+        for (const [di, dj, rot] of [[0, -1, 0], [1, 0, -Math.PI / 2], [0, 1, Math.PI], [-1, 0, Math.PI / 2]]) {
+          if (this.isFloor(i + di, j + dj)) continue;
+          // edge midpoint, pushed outward by half the wall thickness
+          const ex = p.x + di * (c / 2 + 0.5), ez = p.z + dj * (c / 2 + 0.5);
+          // wall_half spans local x 0..2; centre it on the edge
+          const ax = Math.cos(rot), az = -Math.sin(rot);
+          put(wb, WALLS[(i * 7 + j * 13) % WALLS.length], ex - ax * 1, 0, ez - az * 1, rot, 1, 1.05, 1);
+          // corner posts where edges meet
+          for (const sgn of [-1, 1]) {
+            const vx = p.x + di * c / 2 + ax * sgn * c / 2, vz = p.z + dj * c / 2 + az * sgn * c / 2;
+            const k = Math.round(vx * 2) + ',' + Math.round(vz * 2);
+            corners.set(k, (corners.get(k) || 0) + 1);
+          }
+          if ((i * 31 + j * 17 + di * 5 + dj * 3) % 11 === 0) torchSpots.push({ x: p.x + di * (c / 2 - 0.05), z: p.z + dj * (c / 2 - 0.05), rot });
+        }
+      }
+      for (const [k, n] of corners) { if (n < 2) continue; const [x2, z2] = k.split(',').map(Number); put(wb, 'column', x2 / 2, 0, z2 / 2, 0, 1.15, 2.9, 1.15); }
+      // wall torches (the flame itself is an unlit glow sprite so it reads in the dark)
+      for (const t of torchSpots) {
+        put(wb, 'torch_mounted', t.x, 1.9, t.z, t.rot + Math.PI);
+        gb.add(cone(0.16, 0.42, 5), { p: [t.x - Math.sin(t.rot + Math.PI) * 0.0, 2.95, t.z], color: T.glow, shade: 0 });
+      }
+    } else {
+      for (let j = 0; j < N; j++) for (let i = 0; i < N; i++) {
+        if (this.isFloor(i, j)) continue;
+        let touch = false;
+        for (let dj = -1; dj <= 1 && !touch; dj++) for (let di = -1; di <= 1; di++) if (this.isFloor(i + di, j + dj)) { touch = true; break; }
+        if (!touch) continue;
+        const p = this.toWorld(i, j);
+        const hh = H + r() * 1.2;
+        wb.add(box(c, hh, c), { p: [p.x, hh / 2, p.z], color: [T.wall[0], T.wall[1]], shade: 0.06 });
+      }
     }
-    // decorations & torches
+    // decorations
+    const PROPS = ['barrel_large', 'barrel_small_stack', 'crates_stacked', 'box_stacked', 'keg', 'trunk_large_a', 'rubble_half', 'sword_shield', 'candle_triple', 'coin_stack_medium'];
     for (const rm of this.rooms) {
       const ctr = this.toWorld(rm.x, rm.z);
       const n = rm.boss ? 8 : 4;
-      for (let k = 0; k < n; k++) {
+      if (!kit) for (let k = 0; k < n; k++) {
         const a = k / n * Math.PI * 2;
         const rr = Math.min(rm.w, rm.h) * c * 0.5 - 1.2;
         const x = ctr.x + Math.cos(a) * rr, z = ctr.z + Math.sin(a) * rr;
         if (!this.walkable(x, z)) continue;
-        // torch on a post
         wb.add(cyl(0.08, 0.1, 2.4, 5), { p: [x, 1.2, z], color: 0x3a2a1a });
         gb.add(cone(0.22, 0.5, 5), { p: [x, 2.6, z], color: T.glow, shade: 0 });
+      }
+      if (kit) {
+        // clutter hugging the walls of each room
+        for (let k = 0; k < (rm.boss ? 4 : 6); k++) {
+          const a = r() * Math.PI * 2, rr = Math.min(rm.w, rm.h) * c * 0.5 - 1.4;
+          const x = ctr.x + Math.cos(a) * rr, z = ctr.z + Math.sin(a) * rr;
+          if (!this.walkable(x, z) || !this.walkable(x + 1, z) || !this.walkable(x - 1, z)) continue;
+          const name = PROPS[Math.floor(r() * PROPS.length)];
+          put(wb, name, x, 0, z, r() * Math.PI * 2, /stack|crates|rubble/.test(name) ? 0.6 : 0.7);
+        }
+        // boss room: pillars around the arena
+        if (rm.boss) for (let k = 0; k < 6; k++) {
+          const a = k / 6 * Math.PI * 2, rr = Math.min(rm.w, rm.h) * c * 0.5 - 2.2;
+          const x = ctr.x + Math.cos(a) * rr, z = ctr.z + Math.sin(a) * rr;
+          if (this.walkable(x, z)) put(wb, 'pillar_decorated', x, 0, z, -a, 0.8);
+        }
       }
       for (let k = 0; k < (rm.boss ? 6 : 3); k++) {
         const x = ctr.x + rand(-rm.w * 0.7, rm.w * 0.7), z = ctr.z + rand(-rm.h * 0.7, rm.h * 0.7);
         if (!this.walkable(x, z) || distSq2(x, z, ctr.x, ctr.z) < 16) continue;
         if (T.deco === 'stalag') wb.add(jitter(cone(0.5, 2 + r() * 2, 5), 0.2, k), { p: [x, 1.2, z], color: T.wall });
         else if (T.deco === 'web') { wb.add(torus(1.2, 0.04, 3, 10), { p: [x, 2.5, z], r: [r(), r(), 0], color: 0xe8e8f0 }); wb.add(dodeca(0.4), { p: [x, 0.3, z], color: 0xe8e0d0 }); }
-        else if (T.deco === 'pillar') wb.add(cyl(0.5, 0.55, 4, 8), { p: [x, 2, z], color: [0xb89868, 0xe8c898] });
+        else if (T.deco === 'pillar') { if (!kit || !put(wb, 'pillar', x, 0, z, r() * 3, 0.7)) wb.add(cyl(0.5, 0.55, 4, 8), { p: [x, 2, z], color: [0xb89868, 0xe8c898] }); }
         else if (T.deco === 'crystal') gb.add(octa(0.5), { p: [x, 1, z], s: [1, 2.5, 1], color: 0x8ae8ff, shade: 0.1 });
         else if (T.deco === 'lava') gb.add(box(1.5, 0.05, 1.5), { p: [x, 0.02, z], color: 0xff5a1a, shade: 0 });
         else gb.add(octa(0.4), { p: [x, 1.5, z], s: [1, 2, 1], color: 0xb86aff, shade: 0.1 });
       }
-      // boss room: altar/rune circle
+      // boss room: rune circle
       if (rm.boss) gb.add(torus(5, 0.12, 3, 32), { p: [ctr.x, 0.05, ctr.z], r: [Math.PI / 2, 0, 0], color: T.glow, shade: 0 });
     }
     const floor = new THREE.Mesh(fb.build(), lambert('dfloor'));

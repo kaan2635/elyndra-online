@@ -304,6 +304,9 @@ body.touch.portrait #tframe { top: calc(84px + var(--safe-t)); min-width: 240px;
 body.touch.portrait #minimap { width: 104px; } body.touch.portrait #minimap .mm { width: 96px; height: 96px; }
 body.touch.portrait #interact { bottom: calc(292px + var(--safe-b)); max-width: 72vw; }
 body.touch.portrait #actionbar { bottom: calc(300px + var(--safe-b)); }
+body.touch.portrait #mskills .mr-dodge { right: 0 !important; bottom: 236px !important; }
+body.touch.portrait #mskills .mr-jump { right: 56px !important; bottom: 236px !important; }
+body.touch.portrait #mskills .mr-target { right: 112px !important; bottom: 236px !important; }
 @media (max-width: 760px) and (orientation: landscape) {
   .unitframe { min-width: 190px; padding: 5px 9px 5px 5px; } .unitframe .portrait { width: 42px; height: 42px; }
   #tracker { width: 210px; font-size: 11.5px; }
@@ -384,12 +387,13 @@ body.touch.portrait #actionbar { bottom: calc(300px + var(--safe-b)); }
 @media (max-width: 860px), (max-height: 560px) {
   .cc { grid-template-columns: 1fr; grid-template-rows: auto 1fr auto auto auto; gap: 8px; padding: calc(8px + var(--safe-t)) calc(8px + var(--safe-r)) calc(8px + var(--safe-b)) calc(8px + var(--safe-l)); }
   .cc-title { font-size: 18px; }
-  .cc-view { grid-column: 1; grid-row: 2; align-self: end; }
+  .cc-view { position: absolute; right: calc(8px + var(--safe-r)); top: calc(52px + var(--safe-t)); flex-direction: column; gap: 8px; }
+  .cc-vbtn { width: 42px; height: 42px; font-size: 18px; }
   .cc-hint { display: none; }
   .cc-tabs { display: flex; grid-row: 3; gap: 6px; justify-content: center; }
   .cc-tabs button { flex: 1; max-width: 220px; padding: 9px; border-radius: 12px; border: 1px solid var(--edge); background: var(--glass); color: var(--ink2); font: 800 13px var(--font); }
   .cc-tabs button.on { background: var(--accent); color: var(--accent-ink); }
-  .cc-panel { grid-column: 1; grid-row: 4; max-height: 38vh; padding: 10px; gap: 10px; }
+  .cc-panel { grid-column: 1; grid-row: 4; max-height: 36vh; padding: 10px; gap: 10px; }
   .cc[data-tab="class"] .cc-right, .cc[data-tab="look"] .cc-left { display: none; }
   .cc-bottom { grid-row: 5; }
   .cc-bottom > .btn.ghost { position: static; }

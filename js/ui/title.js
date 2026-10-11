@@ -56,9 +56,10 @@ export const Title = {
   },
   about() {
     UI.info('Elyndra Online', h('div', { style: { lineHeight: '1.6' } },
-      h('p', L('Elyndra, tarayıcıda ve telefonda oynanan, tamamen kodla üretilmiş 3B bir fantastik MMORPG\'dir. Tüm modeller, ikonlar, müzik ve ses efektleri prosedürel olarak oluşturulur.|Elyndra is a 3D fantasy MMORPG for browser and phone, generated entirely in code. All models, icons, music and sound effects are procedural.')),
+      h('p', L('Elyndra, tarayıcıda ve telefonda oynanan 3B bir fantastik MMORPG’dir. Müzik, ses efektleri, arazi ve büyü efektleri kodla üretilir.|Elyndra is a 3D fantasy MMORPG for browser and phone. Music, sound effects, terrain and spell effects are generated in code.')),
       h('p', L('Diğer maceracılar dünyayı canlı tutar; aynı anda oyunda olan gerçek oyuncularla P2P bağlantısı üzerinden sohbet edebilir ve birbirinizi görebilirsiniz.|Other adventurers keep the world alive; real players online at the same time can see each other and chat over a P2P connection.')),
       h('p.muted', L('Kayıtların tarayıcında saklanır. Ayarlar menüsünden dışa aktarıp başka cihaza taşıyabilirsin.|Your saves are stored in your browser. Export them from Settings to move to another device.')),
+      h('p.muted', { style: { fontSize: '12.5px' } }, L('3B modeller: KayKit (Kay Lousberg) ve Quaternius — CC0. İkonlar: game-icons.net (Lorc, Delapouite ve diğerleri) — CC BY 3.0.|3D models: KayKit (Kay Lousberg) and Quaternius — CC0. Icons: game-icons.net (Lorc, Delapouite and others) — CC BY 3.0.')),
       h('p.muted', 'Three.js (MIT) · Trystero (MIT)')));
   },
   // ------------------------------------------------------------ character select
@@ -213,11 +214,11 @@ export const Title = {
       } else {
         const wide = window.innerWidth > window.innerHeight;
         c.yaw = STAGE.yaw; c.pitch = damp(c.pitch, this.zoom ? 0.06 : 0.1, 6, dt);
-        c.tDist = this.zoom ? 2.5 : (wide ? 3.7 : 5.2);
+        c.tDist = this.zoom ? 2.5 : (wide ? 3.7 : 6.2);
         // the character turns (drag/arrows) instead of the camera so the background stays put
         u.yaw = damp(u.yaw, c.yaw + (this.rot || 0), 10, dt);
         focus = { x: u.pos.x, y: u.pos.y + (this.zoom ? 0.05 : (wide ? -0.55 : -0.25)), z: u.pos.z };
-        if (!wide && !this.zoom) focus.y -= 0.9; // portrait: keep the hero in the upper half above the sheet
+        if (!wide) focus.y -= this.zoom ? 0.75 : 2.1; // portrait: keep the hero in the upper half above the sheet
       }
       E.updateCamera(dt, focus);
       E.updateLighting(dt, focus);
@@ -229,7 +230,7 @@ export const Title = {
     U.time.value = G.time;
     if (u && this.screen !== 'title') { U.camPos.value.copy(G.camera.position); U.focus.value.set(u.pos.x, u.pos.y + 1, u.pos.z); U.occ.value = 1; } else U.occ.value = 0;
     const w = G.world;
-    if (w.glowMesh) w.glowMesh.material.color.setScalar(0.55 + (1 - (E.daylight ?? 1)) * 0.9);
+    if (w.glowMesh) w.glowMesh.material.color.setScalar((0.55 + (1 - (E.daylight ?? 1)) * 0.9) * (E.q.post ? 1.9 : 1));
     if (w.water?.userData.setLight) w.water.userData.setLight(E.sun.position.clone().sub(E.sun.target.position).normalize(), 0.45 + 0.55 * (E.daylight ?? 1));
   },
 };

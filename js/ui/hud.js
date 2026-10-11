@@ -192,10 +192,10 @@ export const HUD = {
     inner.forEach(([r, bt], i) => { const b = this.makeBtn(i + 1); b.style.right = r + 'px'; b.style.bottom = bt + 'px'; sk.append(b); this.mBtns.push(b); });
     outer.forEach(([r, bt], i) => { const b = this.makeBtn(i + 5); b.style.right = r + 'px'; b.style.bottom = bt + 'px'; b.style.width = '48px'; b.style.height = '48px'; sk.append(b); this.mBtns.push(b); });
     main.style.right = '0px'; main.style.bottom = '0px';
-    const rb = (label, ic, fn, r, b, theme = ICON_THEMES.ui) => { const e = h('button.mround', { style: { right: r + 'px', bottom: b + 'px' } }, ic ? h('img', { src: iconURL(ic, { size: 64, ...theme }) }) : label); e.addEventListener('pointerdown', ev => { ev.preventDefault(); ev.stopPropagation(); Audio.sfx('ui_click', { vol: 0.4 }); fn(); }); sk.append(e); return e; };
-    rb('', 'sprint', () => G.playerCtl?.dodge(), 236, 64);
-    rb('', 'arrow_up', () => G.playerCtl?.jump(), 236, 118);
-    rb('', 'mark', () => G.playerCtl?.cycleTarget(), 214, 172);
+    const rb = (label, ic, fn, r, b, cls = '', theme = ICON_THEMES.ui) => { const e = h('button.mround' + cls, { style: { right: r + 'px', bottom: b + 'px' } }, ic ? h('img', { src: iconURL(ic, { size: 64, ...theme }) }) : label); e.addEventListener('pointerdown', ev => { ev.preventDefault(); ev.stopPropagation(); Audio.sfx('ui_click', { vol: 0.4 }); fn(); }); sk.append(e); return e; };
+    rb('', 'sprint', () => G.playerCtl?.dodge(), 236, 64, '.mr-dodge');
+    rb('', 'arrow_up', () => G.playerCtl?.jump(), 236, 118, '.mr-jump');
+    rb('', 'mark', () => G.playerCtl?.cycleTarget(), 214, 172, '.mr-target');
     this.mInteract = null;
     m.append(this.joyBase, this.joyKnob, this.joyHint, sk);
     UI.root.append(m);

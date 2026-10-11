@@ -44,7 +44,7 @@ export function withCamFade(m, key) {
 export function lambert(key = 'base', extra = {}) {
   if (!cache[key]) {
     cache[key] = new THREE.MeshLambertMaterial({ vertexColors: true, flatShading: true, ...extra });
-    if (key === 'props' || key === 'structures') withCamFade(cache[key], key);
+    if (key === 'props' || key === 'structures' || key === 'dwall') withCamFade(cache[key], key);
   }
   return cache[key];
 }

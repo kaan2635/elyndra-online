@@ -16,7 +16,9 @@ const GLTF_PROPS = {
   willow: () => [range('willow', 3), 6.4],
   palm: () => [range('palmtree', 4), 7.4],
   dead: o => [o.snow ? ['commontree_dead_snow_1'] : [...range('commontree_dead', 3), ...range('willow_dead', 2)], 5.8],
-  shadowtree: () => [[...range('commontree_dead', 3), ...range('willow_dead', 2)], 7],
+  shadowtree: () => [['tree_dead_large', 'tree_dead_medium', 'tree_dead_large_decorated', 'tree_dead_small'], 7.5, 'env/grave.glb'],
+  bones: () => [['bone_a', 'bone_b', 'bone_c', 'ribcage', 'skull'], 0.55, 'env/grave.glb'],
+  grave: () => [['gravestone', 'gravemarker_a', 'gravemarker_b', 'grave_a', 'grave_b'], 1.5, 'env/grave.glb'],
   cactus: () => [[...range('cactus', 5), 'cactusflowers_2', 'cactusflowers_3'], 2.6],
   rock: o => [o.snow ? range('rock_snow', 4) : o.moss ? [...range('rock_moss', 4), 'rock_1', 'rock_4'] : range('rock', 7), 1.3],
   boulder: o => [o.snow ? range('rock_snow', 4) : o.moss ? range('rock_moss', 4) : ['rock_2', 'rock_3', 'rock_6'], 3.2],
@@ -29,17 +31,19 @@ const GLTF_PROPS = {
   log: o => [[o.snow ? 'woodlog_snow' : o.moss ? 'woodlog_moss' : 'woodlog'], 0.8],
 };
 // colour multipliers that let one model set serve several biomes
-const GLTF_TINT = { lavarock: 0x6a5a58, shadowtree: 0xb8a8d0 };
+const GLTF_TINT = { lavarock: 0x6a5a58, shadowtree: 0x9a8ab8 };
 export const usesGltf = type => !!GLTF_PROPS[type];
 function gltfVariants(type, opts) {
-  const f = GLTF_PROPS[type]; if (!f || !Assets.isLoaded(NAT)) return null;
-  const [names, h] = f(opts);
-  const out = names.slice(0, 4).map(n => bakedGeometry(NAT, n, { height: h * (0.85 + (n.charCodeAt(n.length - 1) % 3) * 0.12), tint: GLTF_TINT[type] ?? null })).filter(Boolean);
+  const f = GLTF_PROPS[type]; if (!f) return null;
+  const [names, h, pack = NAT] = f(opts);
+  if (!Assets.isLoaded(pack)) return null;
+  const out = names.slice(0, 4).map(n => bakedGeometry(pack, n, { height: h * (0.85 + (n.charCodeAt(n.length - 1) % 3) * 0.12), tint: GLTF_TINT[type] ?? null })).filter(Boolean);
   return out.length ? out : null;
 }
 
 // Each builder: (r, o) => BufferGeometry  (o: colour overrides). Origin at ground, +Y up.
 export const PROP_BUILDERS = {
+  grave(r, o) { const b = new Builder(r() * 1e6); b.add(box(0.7, 1.1, 0.22), { p: [0, 0.55, 0], color: 0x8a8a90 }); return b.build(); },
   oak(r, o) {
     const b = new Builder(r() * 1e6);
     const h = 1.6 + r() * 0.8;
@@ -271,7 +275,7 @@ export const PROP_BUILDERS = {
 
 // Which props sway in the wind and which are colliders
 const SWAY = { oak: 0.025, pine: 0.02, birch: 0.03, willow: 0.03, palm: 0.035, bush: 0.06, grass: 0.12, flowers: 0.12, reeds: 0.1, fern: 0.08, shadowtree: 0.02, bigshroom: 0.01 };
-export const COLLIDE = { oak: 0.45, pine: 0.4, birch: 0.3, willow: 0.5, palm: 0.35, dead: 0.3, bigshroom: 0.45, crystal: 0.6, cactus: 0.35, rock: 0.75, boulder: 1.8, spire: 1.0, stump: 0.4, log: 0.6, icespike: 0.8, lavarock: 0.8, shadowtree: 0.35, ruinpillar: 0.55 };
+export const COLLIDE = { grave: 0.45, oak: 0.45, pine: 0.4, birch: 0.3, willow: 0.5, palm: 0.35, dead: 0.3, bigshroom: 0.45, crystal: 0.6, cactus: 0.35, rock: 0.75, boulder: 1.8, spire: 1.0, stump: 0.4, log: 0.6, icespike: 0.8, lavarock: 0.8, shadowtree: 0.35, ruinpillar: 0.55 };
 const NO_SHADOW = new Set(['grass', 'flowers', 'reeds', 'fern', 'snowpile', 'bones', 'coral']);
 
 /**

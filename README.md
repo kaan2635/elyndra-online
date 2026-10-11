@@ -15,11 +15,11 @@ No install needed. On phones, use "Add to Home Screen" to install it like an app
 ### Nedir?
 Elyndra, Aether Kristali'nin Gölge Lordu Malakar tarafından paramparça edildiği bir dünyada geçen, uzun soluklu bir aksiyon-MMORPG'dir. Sen bir **Kristal Taşıyıcı**sın: altı diyarı dolaş, kristal parçalarını kurtar ve Malakar'ı tahtında yen.
 
-Tüm 3B modeller, ikonlar, müzik ve ses efektleri **prosedürel olarak kodla** üretilir. Hiçbir harici görsel veya ses dosyası kullanılmaz.
+Karakterler, yaratıklar, binalar ve doğa **profesyonel CC0 3B paketlerinden** (KayKit, Quaternius) gelir; tüm ikonlar game-icons.net setindendir. Müzik, ses efektleri, arazi ve büyü efektleri kodla üretilir. Ayrıntılar: [assets/CREDITS.md](assets/CREDITS.md).
 
 ### Özellikler
 - **6 sınıf** — Savaşçı (tank), Büyücü, Korucu (kurt yoldaşlı okçu), Rahip (şifacı), Suikastçı (kombo puanlı), Nekromant (iskelet ordusu). Her sınıfta 10 yetenek + 3 dallı yetenek ağacı (ücretsiz sıfırlama).
-- **4 ırk** ve detaylı karakter yaratma (ten, saç, sakal, göz, vücut tipi).
+- **4 ırk** ve karakter yaratma: kameraya dönük, döndürülebilir ve yüze yakınlaştırılabilir önizleme; ten rengi, kıyafet rengi, başlık/pelerin seçenekleri.
 - **6 büyük bölge** (1–60. seviye): Yeşilvadi, Fısıltı Ormanı, Kavruk Çöl, Buzdoruk Dağları, Kor Diyarı, Gölge Diyarı — her biri kendi kasabası, NPC'leri, görevleri, canavarları, nadir elitleri ve dünya patronuyla.
 - **Ana hikâye + yan görevler**, günlük/haftalık görevler, otomatik yol bulma ("Git" düğmesi).
 - **Aksiyon savaşı**: hedefleme, otomatik saldırı, döküm süreleri, yere çizilen uyarı alanlarından takla atarak kaçınma, patron mekanikleri.
@@ -58,10 +58,10 @@ Tüm 3B modeller, ikonlar, müzik ve ses efektleri **prosedürel olarak kodla** 
 ### What is it?
 Elyndra is a long-form action MMORPG set in a world where the Aether Crystal was shattered by Malakar the Shadow Lord. You are a **Crystal Bearer**: travel six realms, recover the shards and defeat Malakar on his throne.
 
-Every 3D model, icon, music track and sound effect is **generated procedurally in code** — no external image or audio files.
+Characters, creatures, buildings and nature come from **professional CC0 3D packs** (KayKit, Quaternius); every icon is from game-icons.net. Music, sound effects, terrain and spell effects are generated in code. See [assets/CREDITS.md](assets/CREDITS.md).
 
 ### Features
-- **6 classes** (Warrior, Mage, Ranger, Cleric, Rogue, Necromancer), 10 skills each + 3-branch talent trees (free respec), **4 races**, detailed character creator.
+- **6 classes** (Warrior, Mage, Ranger, Cleric, Rogue, Necromancer), 10 skills each + 3-branch talent trees (free respec), **4 races**, a rotatable character creator with face zoom, skin tones, outfit colours and headgear/cape toggles.
 - **6 zones** for levels 1–60, each with a town, NPCs, main story and side quests, monsters, rare elites and a world boss.
 - **Action combat** with telegraphed boss attacks you can dodge-roll out of.
 - **5 dungeons + a 3-boss raid**, playable solo with AI companions; **Heroic** mode at 60; **Endless Tower**; **Arena** (1v1/3v3, gear-equalised, Elo rating).
@@ -81,10 +81,10 @@ node tools/devserver.mjs 8080
 Then open http://localhost:8080. Add `?test=warrior&lvl=10` to jump straight in with a test character.
 
 ### Tech
-- [Three.js](https://threejs.org) (MIT) — rendering, skinned low-poly models generated at runtime
+- [Three.js](https://threejs.org) (MIT) — rendering, glTF models with blended skeletal animation, bloom & colour grading
+- 3D art: [KayKit](https://github.com/KayKit-Game-Assets) and [Quaternius](https://quaternius.com) (CC0); icons: [game-icons.net](https://game-icons.net) (CC BY 3.0) — full list in [assets/CREDITS.md](assets/CREDITS.md)
 - [Trystero](https://github.com/dmotz/trystero) (MIT) — serverless WebRTC matchmaking over Nostr
 - Web Audio API — fully synthesized music and sound
-- Canvas 2D — vector icon generator
 
 ### License
 Code: MIT — see [LICENSE](LICENSE). Third-party libraries in `lib/` keep their own licenses.

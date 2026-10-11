@@ -10,7 +10,7 @@ export function defaultSettings() {
   const small = Math.min(window.innerWidth, window.innerHeight) < 500;
   return {
     quality: touch ? (small ? 'low' : 'med') : 'high', master: 0.8, music: 0.45, sfx: 0.8, ambient: 0.55,
-    dmgNumbers: true, nameplates: true, camShake: true, online: true, showFps: false, uiScale: touch && small ? 0.9 : 1,
+    dmgNumbers: true, nameplates: true, camShake: true, online: true, post: true, showFps: false, uiScale: touch && small ? 0.9 : 1,
     autoLoot: true, fixedJoy: false, bots: true, fpsCap: touch ? 60 : 0,
   };
 }

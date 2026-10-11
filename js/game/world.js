@@ -316,7 +316,7 @@ export class World {
     // emissive windows brighter at night
     if (this.glowMesh) {
       const d = G.engine.daylight ?? 1;
-      this.glowMesh.material.color.setScalar(0.55 + (1 - d) * 0.9);
+      this.glowMesh.material.color.setScalar((0.55 + (1 - d) * 0.9) * (G.engine.q.post ? 1.9 : 1));
     }
     if (this.water?.userData.setLight) this.water.userData.setLight(G.engine.sun.position.clone().sub(G.engine.sun.target.position).normalize(), 0.45 + 0.55 * (G.engine.daylight ?? 1));
   }

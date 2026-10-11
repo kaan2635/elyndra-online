@@ -2,12 +2,33 @@
 import * as THREE from 'three';
 import { G } from '../core/state.js';
 import { clamp, lerp, damp, smoothstep } from '../core/util.js';
+import { EffectComposer } from '../../lib/addons/postprocessing/EffectComposer.js';
+import { RenderPass } from '../../lib/addons/postprocessing/RenderPass.js';
+import { UnrealBloomPass } from '../../lib/addons/postprocessing/UnrealBloomPass.js';
+import { ShaderPass } from '../../lib/addons/postprocessing/ShaderPass.js';
+import { OutputPass } from '../../lib/addons/postprocessing/OutputPass.js';
+
+// Final grade (linear HDR, before tone mapping): gentle contrast/saturation and a soft vignette.
+const GradeShader = {
+  uniforms: { tDiffuse: { value: null }, sat: { value: 1.1 }, contrast: { value: 1.05 }, vignette: { value: 0.32 } },
+  vertexShader: 'varying vec2 vUv; void main(){ vUv = uv; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }',
+  fragmentShader: `uniform sampler2D tDiffuse; uniform float sat; uniform float contrast; uniform float vignette; varying vec2 vUv;
+    void main(){
+      vec4 c = texture2D(tDiffuse, vUv);
+      float l = dot(c.rgb, vec3(0.2126, 0.7152, 0.0722));
+      c.rgb = mix(vec3(l), c.rgb, sat);
+      c.rgb = max(vec3(0.0), (c.rgb - 0.18) * contrast + 0.18);
+      vec2 d = vUv - 0.5; float v = smoothstep(0.85, 0.25, length(d * vec2(1.0, 0.85)));
+      c.rgb *= mix(1.0 - vignette, 1.0, v);
+      gl_FragColor = c;
+    }`,
+};
 
 const QUALITY = {
-  low: { pr: 0.85, shadows: false, shadowSize: 512, far: 120, grass: 0.25, antialias: false },
-  med: { pr: 1.25, shadows: true, shadowSize: 1024, far: 170, grass: 0.6, antialias: false },
-  high: { pr: 1.75, shadows: true, shadowSize: 2048, far: 220, grass: 1, antialias: true },
-  ultra: { pr: 2, shadows: true, shadowSize: 2048, far: 280, grass: 1.3, antialias: true },
+  low: { pr: 0.85, shadows: false, shadowSize: 512, far: 120, grass: 0.25, antialias: false, post: false },
+  med: { pr: 1.25, shadows: true, shadowSize: 1024, far: 170, grass: 0.6, antialias: false, post: true },
+  high: { pr: 1.75, shadows: true, shadowSize: 2048, far: 220, grass: 1, antialias: true, post: true },
+  ultra: { pr: 2, shadows: true, shadowSize: 2048, far: 280, grass: 1.3, antialias: true, post: true },
 };
 
 export class Engine {
@@ -56,11 +77,23 @@ export class Engine {
     this.env = null; // zone environment palette
     this.indoor = false;
 
+    this.setupPost();
     this.resize();
     window.addEventListener('resize', () => this.resize());
     window.visualViewport?.addEventListener('resize', () => this.resize());
   }
 
+  setupPost() {
+    const R = this.renderer;
+    const rt = new THREE.WebGLRenderTarget(4, 4, { type: THREE.HalfFloatType, samples: this.q.antialias ? 4 : 0 });
+    this.composer = new EffectComposer(R, rt);
+    this.composer.addPass(new RenderPass(this.scene, this.camera));
+    this.bloom = new UnrealBloomPass(new THREE.Vector2(256, 256), 0.38, 0.5, 1.25);
+    this.composer.addPass(this.bloom);
+    this.grade = new ShaderPass(GradeShader);
+    this.composer.addPass(this.grade);
+    this.composer.addPass(new OutputPass());
+  }
   setQuality(name) {
     this.qName = name;
     this.q = QUALITY[name] || QUALITY.med;
@@ -77,6 +110,12 @@ export class Engine {
   resize() {
     const w = window.innerWidth, h = window.innerHeight;
     this.renderer.setSize(w, h, false);
+    if (this.composer) {
+      this.composer.setPixelRatio(this.renderer.getPixelRatio());
+      this.composer.setSize(w, h);
+      // bloom at reduced resolution keeps it cheap on phones
+      this.bloom.resolution.set(w * 0.5, h * 0.5);
+    }
     this.camera.aspect = w / h;
     // wider FOV on portrait phones so you can still see around you
     this.camera.fov = w < h ? 68 : 55;
@@ -174,7 +213,10 @@ export class Engine {
     this.sun.target.updateMatrixWorld();
   }
 
-  render() { this.renderer.render(this.scene, this.camera); }
+  render() {
+    if (this.composer && this.q.post && G.settings?.post !== false) this.composer.render();
+    else this.renderer.render(this.scene, this.camera);
+  }
 }
 
 const _c1 = new THREE.Color(), _c2 = new THREE.Color(), _c3 = new THREE.Color(), _c4 = new THREE.Color(), _c5 = new THREE.Color(), _c6 = new THREE.Color(), _tc = new THREE.Color();

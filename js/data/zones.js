@@ -94,6 +94,7 @@ ZONES.vale = {
     { type: 'flowers', d: 0.004, s: [0.8, 1.3], small: true },
     { type: 'fern', d: 0.0015, mask: { s: 0.012, min: 0 }, s: [0.8, 1.3], small: true },
     { type: 'reeds', d: 0.003, shore: true, s: [0.8, 1.2], small: true },
+    { type: 'grave', d: 0.012, area: { x: 122, z: 122, r: 18 }, s: [0.8, 1.1] },
   ],
   clear: [{ x: 3, z: 140, r: 12 }, { x: 0, z: -165, r: 14 }, { x: 95, z: 28, r: 24 }, { x: 58, z: -102, r: 22 }, { x: -122, z: -104, r: 18 }, { x: 122, z: 122, r: 22 }, { x: 6, z: -12, r: 12 }, { x: 92, z: -130, r: 12 }],
   spawns: [
