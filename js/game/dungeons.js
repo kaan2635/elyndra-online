@@ -223,7 +223,7 @@ export const Dungeons = {
     const zoneId = 'dun:' + id;
     const T = THEMES[d.theme];
     const def = {
-      id: zoneId, name: d.name + (heroic ? L(' (Kahramanlık)| (Heroic)') : ''), level: [lvl, lvl], music: 'dungeon', ambient: 'cave', dungeonLayout: layout,
+      id: zoneId, name: d.name + (heroic ? L(' (Kahramanlık)| (Heroic)') : ''), level: [lvl, lvl], music: 'dungeon', ambient: 'cave', dungeonLayout: layout, theme: d.theme, packs: d.packs, boss: d.boss, bosses: d.bosses,
       env: { indoor: true, sky: [T.fog, T.fog, T.fog], fog: T.fog, fogNear: 14, fogFar: 62, sun: T.light, sunI: 0.9, hemiSky: shadeHex(T.light, -0.35), hemiGround: T.fog, hemiI: 0.7, exposure: 1.15 },
       start: layout.start, exit: { x: layout.start.x - 2, z: layout.start.z },
     };

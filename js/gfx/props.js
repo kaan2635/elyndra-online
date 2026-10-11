@@ -3,6 +3,40 @@ import * as THREE from 'three';
 import { Builder, box, cyl, cone, ico, octa, dodeca, sphere, taper, jitter, tetra, torus } from './geom.js';
 import { lambert, foliage } from './materials.js';
 import { rng, shadeHex, mixHex } from '../core/util.js';
+import { Assets } from './assets.js';
+import { bakedGeometry } from './envmodels.js';
+
+// glTF replacements (Quaternius nature pack): type -> (zone prop opts) => [[model names], height range of the model]
+const NAT = 'env/nature.glb';
+const range = (p, n, a = 1) => Array.from({ length: n }, (_, i) => `${p}_${i + a}`);
+const GLTF_PROPS = {
+  oak: o => [o.snow ? range('commontree_snow', 3) : o.autumn ? [...range('commontree_autumn', 3), 'commontree_1', 'commontree_2'] : range('commontree', 5), 6.2],
+  pine: o => [o.snow ? range('pinetree_snow', 4) : o.autumn ? [...range('pinetree_autumn', 2), 'pinetree_1', 'pinetree_3'] : range('pinetree', 5), 7.2],
+  birch: o => [o.snow ? ['birchtree_snow_1'] : o.autumn ? range('birchtree_autumn', 2) : range('birchtree', 3), 7],
+  willow: () => [range('willow', 3), 6.4],
+  palm: () => [range('palmtree', 4), 7.4],
+  dead: o => [o.snow ? ['commontree_dead_snow_1'] : [...range('commontree_dead', 3), ...range('willow_dead', 2)], 5.8],
+  shadowtree: () => [[...range('commontree_dead', 3), ...range('willow_dead', 2)], 7],
+  cactus: () => [[...range('cactus', 5), 'cactusflowers_2', 'cactusflowers_3'], 2.6],
+  rock: o => [o.snow ? range('rock_snow', 4) : o.moss ? [...range('rock_moss', 4), 'rock_1', 'rock_4'] : range('rock', 7), 1.3],
+  boulder: o => [o.snow ? range('rock_snow', 4) : o.moss ? range('rock_moss', 4) : ['rock_2', 'rock_3', 'rock_6'], 3.2],
+  lavarock: () => [range('rock', 7), 1.6],
+  bush: o => [o.snow ? range('bush_snow', 2) : ['bush_1', 'bush_2', 'bushberries_1', 'bushberries_2'], 1.4],
+  flowers: () => [['flowers', 'plant_2', 'flowers'], 0.6],
+  fern: () => [['plant_1', 'plant_3', 'plant_4'], 0.8],
+  reeds: () => [['plant_5', 'grass_2', 'wheat'], 1.0],
+  stump: o => [[o.snow ? 'treestump_snow' : o.moss ? 'treestump_moss' : 'treestump'], 0.9],
+  log: o => [[o.snow ? 'woodlog_snow' : o.moss ? 'woodlog_moss' : 'woodlog'], 0.8],
+};
+// colour multipliers that let one model set serve several biomes
+const GLTF_TINT = { lavarock: 0x6a5a58, shadowtree: 0xb8a8d0 };
+export const usesGltf = type => !!GLTF_PROPS[type];
+function gltfVariants(type, opts) {
+  const f = GLTF_PROPS[type]; if (!f || !Assets.isLoaded(NAT)) return null;
+  const [names, h] = f(opts);
+  const out = names.slice(0, 4).map(n => bakedGeometry(NAT, n, { height: h * (0.85 + (n.charCodeAt(n.length - 1) % 3) * 0.12), tint: GLTF_TINT[type] ?? null })).filter(Boolean);
+  return out.length ? out : null;
+}
 
 // Each builder: (r, o) => BufferGeometry  (o: colour overrides). Origin at ground, +Y up.
 export const PROP_BUILDERS = {
@@ -253,10 +287,11 @@ export function buildPropField(list, opts, zoneSize, seed = 1, chunks = 4) {
   const buckets = new Map();
   for (const p of list) {
     if (!variants[p.type]) {
-      variants[p.type] = [];
-      for (let v = 0; v < VAR; v++) variants[p.type].push(PROP_BUILDERS[p.type](rng(seed * 31 + v * 7 + p.type.length * 101), opts));
+      variants[p.type] = gltfVariants(p.type, opts);
+      if (!variants[p.type]) { variants[p.type] = []; for (let v = 0; v < VAR; v++) variants[p.type].push(PROP_BUILDERS[p.type](rng(seed * 31 + v * 7 + p.type.length * 101), opts)); }
     }
-    const v = p.v ?? Math.floor(r() * VAR);
+    const nv = variants[p.type].length;
+    const v = p.v != null ? p.v % nv : Math.floor(r() * nv);
     const cx = Math.min(chunks - 1, Math.max(0, Math.floor((p.x + half) / cs))), cz = Math.min(chunks - 1, Math.max(0, Math.floor((p.z + half) / cs)));
     const key = p.type + '|' + v + '|' + cx + '|' + cz;
     if (!buckets.has(key)) buckets.set(key, { type: p.type, v, items: [] });

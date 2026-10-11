@@ -4,6 +4,9 @@ import { G, emit } from './core/state.js';
 import { L, t } from './core/i18n.js';
 import { Save } from './core/save.js';
 import { Input } from './core/input.js';
+import { Assets } from './gfx/assets.js';
+import { CORE } from './gfx/preload.js';
+import { setIconGlyphs } from './gfx/icons.js';
 import { Engine } from './gfx/engine.js';
 import { Overlay } from './gfx/overlay.js';
 import { VFX } from './gfx/vfx.js';
@@ -31,6 +34,7 @@ let last = performance.now(), saveT = 0, acc = 0;
 async function boot() {
   setBoot(10, L('Ayarlar yükleniyor…|Loading settings…'));
   Save.load();
+  try { setIconGlyphs(await (await fetch('./assets/icons.json')).json()); } catch (e) { console.warn('icons', e); }
   Audio.init();
   Audio.setVolumes({ master: G.settings.master, music: G.settings.music, sfx: G.settings.sfx, ambient: G.settings.ambient });
   setBoot(25, L('Grafik motoru başlatılıyor…|Starting renderer…'));
@@ -43,7 +47,9 @@ async function boot() {
   UI.init();
   Progress.init();
   G.inv.update(0);
-  setBoot(45, L('Sistemler hazırlanıyor…|Preparing systems…'));
+  setBoot(30, L('Modeller yükleniyor…|Loading models…'));
+  try { await Assets.preload(CORE, f => setBoot(30 + f * 45, L('Modeller yükleniyor…|Loading models…'))); } catch (e) { console.warn('core assets', e); }
+  setBoot(75, L('Sistemler hazırlanıyor…|Preparing systems…'));
   // optional modules (loaded lazily so a failure in one doesn't break boot)
   const mods = ['./data/zone_forest.js', './data/zone_desert.js', './data/zone_frost.js', './data/zone_ember.js', './data/zone_shadow.js', './game/npcs.js', './game/quests.js', './game/gathering.js', './game/bots.js', './game/party.js', './game/mounts.js', './game/weather.js',
     './game/dungeons.js', './game/crafting.js', './game/market.js', './game/guild.js', './game/achievements.js', './game/arena.js',
@@ -52,7 +58,7 @@ async function boot() {
   let i = 0;
   for (const m of mods) {
     try { await import(m); } catch (e) { if (!String(e).includes('Failed to fetch') && !String(e).includes('404')) console.warn('module', m, e); }
-    setBoot(45 + (++i / mods.length) * 45);
+    setBoot(75 + (++i / mods.length) * 22);
   }
   setupInput(input);
   setBoot(100, L('Hazır!|Ready!'));
@@ -101,9 +107,10 @@ function setupInput(input) {
       case 'Enter': HUD.focusChat(); return true;
       case 'Escape':
         if (UI.closeDialog?.()) return true;
+        if (HUD.menuGrid) { HUD.toggleMenuGrid(); return true; }
         if (UI.anyOpen()) { UI.closeAll(); return true; }
         if (G.player?.target) { pc.setTarget(null); return true; }
-        UI.open('settings'); return true;
+        HUD.toggleMenuGrid(); return true;
     }
     return false;
   };

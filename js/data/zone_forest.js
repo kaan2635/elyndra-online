@@ -17,7 +17,7 @@ ZONES.forest = {
   },
   terrain: {
     size: 400, res: 160, seed: 23, base: 4.5, amp: 10, scale: 0.008, detailAmp: 2.0, detailScale: 0.05, borderH: 38, water: -0.4, surface: 'grass',
-    palette: { ground: [0x3f7a35, 0x528a3a, 0x6a9a45], patch: 0x6a5a8a, rock: 0x6a6a64, sand: 0xa8a070, shore: 0x8a8a5a, road: 0x8a7656, plaza: 0xa8a090, under: 0x3a4a2a },
+    palette: { ground: [0x3f7a35, 0x528a3a, 0x6a9a45], patch: 0x3f6a32, rock: 0x6a6a64, sand: 0xa8a070, shore: 0x8a8a5a, road: 0x8a7656, plaza: 0xa8a090, under: 0x3a4a2a },
     roads: [
       { pts: [[0, 168], [5, 120], [-10, 70], [0, 20], [10, -40], [0, -100], [0, -168]], w: 4.5 },
       { pts: [[0, 20], [60, 30], [110, 10]], w: 3.5 },
@@ -37,7 +37,7 @@ ZONES.forest = {
       { t: 'flat', x: 0, z: 168, r: 12, h: 4, edge: 8 },
     ],
   },
-  propColors: { leaf: 0x3a7a35, trunk: 0x5a4030, rock: 0x7a7a74, moss: 0x4a7a3a, grass: 0x4a8a3a, flowers: [0xd0a0ff, 0xffffff, 0x8ad8ff, 0xffd060], cap: 0x8a3a9a, spots: 0xf0e8ff, berries: 0x6a3ad0 },
+  propColors: { moss: true, leaf: 0x3a7a35, trunk: 0x5a4030, rock: 0x7a7a74, moss: 0x4a7a3a, grass: 0x4a8a3a, flowers: [0xd0a0ff, 0xffffff, 0x8ad8ff, 0xffd060], cap: 0x8a3a9a, spots: 0xf0e8ff, berries: 0x6a3ad0 },
   towns: [{ id: 'leafhome', name: 'Yaprakevi|Leafhome', x: -10, z: 95, r: 28, h: 4, style: 'elven', seed: 9, gates: [Math.PI, 0, -Math.PI / 2], wall: null, center: 'fountain', special: { smithy: 'smithy', inn: 'inn', temple: 'temple', stable: 'stable' } }],
   structures: [
     // moonwell

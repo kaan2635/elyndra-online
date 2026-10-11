@@ -7,7 +7,7 @@ import { Unit } from '../game/unit.js';
 import { appearanceSpec } from '../game/hero.js';
 import { CLASSES } from '../data/classes.js';
 
-const RELAYS = ['wss://relay.damus.io', 'wss://nos.lol', 'wss://relay.primal.net', 'wss://relay.nostr.band', 'wss://nostr.mom'];
+const RELAYS = ['wss://relay.damus.io', 'wss://nos.lol', 'wss://relay.primal.net', 'wss://nostr.mom'];
 const APP_ID = 'elyndra-online-v1';
 let trystero = null;
 
@@ -128,7 +128,8 @@ function sanitizeSpec(s) {
     const g = s.gear?.[k]; if (!g || typeof g !== 'object') continue;
     gear[k] = { m: typeof g.m === 'string' ? g.m.slice(0, 12) : undefined, c: num(g.c), c2: num(g.c2), c3: num(g.c3), glow: num(g.glow), shape: g.shape === 'kite' ? 'kite' : undefined };
   }
-  return { rig: 'humanoid', race: ['human', 'elf', 'dwarf', 'orc'].includes(s.race) ? s.race : 'human', body: s.body ? 1 : 0, skin: num(s.skin), hair: clamp(num(s.hair) || 0, 0, 7), hairColor: num(s.hairColor), beard: clamp(num(s.beard) || 0, 0, 3), eyes: num(s.eyes), gear };
+  return { rig: 'humanoid', race: ['human', 'elf', 'dwarf', 'orc'].includes(s.race) ? s.race : 'human', body: s.body ? 1 : 0, skin: num(s.skin),
+    cls: ['warrior', 'mage', 'ranger', 'cleric', 'rogue', 'necro'].includes(s.cls) ? s.cls : undefined, outfit: Number.isFinite(s.outfit) ? clamp(s.outfit, 0, 360) : undefined, outfitSat: Number.isFinite(s.outfitSat) ? clamp(s.outfitSat, 0, 1.5) : undefined, outfitDark: Number.isFinite(s.outfitDark) ? clamp(s.outfitDark, 0, 0.6) : 0, hat: s.hat === false ? false : undefined, cape: s.cape !== false, hair: clamp(num(s.hair) || 0, 0, 7), hairColor: num(s.hairColor), beard: clamp(num(s.beard) || 0, 0, 3), eyes: num(s.eyes), gear };
 }
 
 G.net = Net;

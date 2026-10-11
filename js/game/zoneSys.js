@@ -8,6 +8,7 @@ import { Spawner, spawnMonster } from './factory.js';
 import { clearTimers } from './skillsys.js';
 import { Audio } from '../audio.js';
 import { dmg } from './combat.js';
+import { preloadZone } from '../gfx/preload.js';
 
 export const ZoneSys = {
   current: null,
@@ -17,6 +18,7 @@ export const ZoneSys = {
     if (!def) { console.error('unknown zone', zoneId); return; }
     G.ui?.loading?.(true, L(def.name));
     await new Promise(r => setTimeout(r, 30));
+    try { await preloadZone(def, f => G.ui?.loadingProgress?.(f)); } catch (e) { console.warn('zone assets', e); }
     const p = G.player;
     // carry party & pets
     const keep = [p, ...(p.summons || []), ...(G.party?.members?.() || []).flatMap(m => [m, ...(m.summons || [])])].filter(Boolean);

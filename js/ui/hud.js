@@ -61,31 +61,24 @@ export const HUD = {
     this.actionbar = h('div#actionbar', this.castbar, this.abar);
     this.xp = h('div#xpbar', h('i.rest'), h('i.cur'), h('b'));
     for (let i = 1; i < 10; i++) this.xp.append(h('div.tick', { style: { left: (i * 10) + '%' } }));
-    // ---- menu
+    // ---- menu: a few labelled primary buttons + one grouped main menu
     this.menubar = h('div#menubar');
     this.menuBtns = {};
-    const MENU = [
-      ['char', 'person', 'menuChar', 'C'], ['bag', 'backpack', 'menuBag', 'B'], ['skills', 'book_open', 'menuSkills', 'K'], ['talents', 'talent', 'menuTalents', 'N'],
-      ['quests', 'quest_exclaim', 'menuQuests', 'L'], ['map', 'map', 'menuMap', 'M'], ['craft', 'hammer_anvil', 'menuCraft', 'J'], ['social', 'users', 'menuSocial', 'O'],
-      ['dungeon', 'dungeon', 'menuDungeon', 'H'], ['market', 'scales', 'menuMarket', 'U'], ['ach', 'trophy', 'menuAch', 'Y'], ['collect', 'horse', 'menuCollect', 'V'], ['home', 'house', 'menuHome', 'E'], ['arena', 'sword_cross', 'menuArena', 'Z'], ['settings', 'gear', 'settings', 'Esc'],
-    ];
-    MENU.forEach(([id, ic, key, kb], i) => {
+    const PRIMARY = [['char', 'person', 'menuChar', 'C'], ['bag', 'backpack', 'menuBag', 'B'], ['skills', 'book_open', 'menuSkills', 'K'], ['quests', 'quest_exclaim', 'menuQuests', 'L'], ['map', 'map', 'menuMap', 'M']];
+    for (const [id, ic, key, kb] of PRIMARY) {
       const dot = h('span.dot');
-      const b = h('button.mb' + (i > 5 && i < 14 ? '.extra' : ''), { onclick: () => UI.toggle(id), title: t(key) + ' (' + kb + ')' }, h('img', { src: uiIcon(ic), alt: '' }), dot);
-      b._dot = dot;
-      this.menuBtns[id] = b; this.menubar.append(b);
-    });
-    if (UI.touch) {
-      const more = h('button.mb', { onclick: () => this.menubar.classList.toggle('collapsed') }, h('img', { src: uiIcon('plus'), alt: '' }));
-      this.menubar.insertBefore(more, this.menubar.firstChild.nextSibling ? this.menubar.children[6] : null);
-      this.menubar.classList.add('collapsed');
+      const b = h('button.mb', { onclick: () => UI.toggle(id), title: t(key) + ' (' + kb + ')' }, h('img', { src: uiIcon(ic), alt: '' }), h('span.mbl', t(key)), dot);
+      b._dot = dot; this.menuBtns[id] = b; this.menubar.append(b);
     }
+    const menuBtn = h('button.mb.menu', { onclick: () => this.toggleMenuGrid(), title: L('Menü|Menu') + ' (Esc)' }, h('span.burger', h('i'), h('i'), h('i')), h('span.mbl', L('Menü|Menu')));
+    this.menuBtns.menu = menuBtn; this.menubar.append(menuBtn);
     this.goldEl = h('div#goldline');
     // ---- chat
     this.chatLog = h('div.log');
     this.chatTabs = h('div.ctabs');
     this.chatInput = h('input', { placeholder: L('Mesaj yaz… (Enter)|Type a message… (Enter)'), maxlength: 160 });
-    this.chat = h('div#chat', this.chatTabs, this.chatLog, h('div.cin', this.chatInput, h('button.btn.small', { onclick: () => this.sendChat() }, '➤'), h('button.btn.small.ghost', { onclick: () => this.chat.classList.toggle('min') }, '—')));
+    this.chatToggle = h('button.chat-toggle', { onclick: () => this.chat.classList.toggle('min'), title: L('Sohbeti aç/kapat|Toggle chat') }, '');
+    this.chat = h('div#chat', h('div.chead', this.chatTabs, this.chatToggle), this.chatLog, h('div.cin', this.chatInput, h('button.send', { onclick: () => this.sendChat(), title: L('Gönder|Send') }, '➤')));
     this.chatInput.addEventListener('focus', () => { UI.chatFocused = true; });
     this.chatInput.addEventListener('blur', () => { UI.chatFocused = false; });
     this.chatInput.addEventListener('keydown', e => { e.stopPropagation(); if (e.key === 'Enter') { this.sendChat(); this.chatInput.blur(); } if (e.key === 'Escape') this.chatInput.blur(); });
@@ -212,22 +205,31 @@ export const HUD = {
       h('button.mbtn', { onclick: () => G.travel?.openWaystones(), title: t('waystone') }, h('img', { src: uiIcon('portal') })),
     );
     if (UI.touch) {
+      this.mmBtns.prepend(h('button.mbtn.menu', { onclick: () => this.toggleMenuGrid(), title: L('Menü|Menu') }, h('span.burger', h('i'), h('i'), h('i'))));
+      this.mmBtns.append(h('button.mbtn', { onclick: () => UI.toggle('bag'), title: t('menuBag') }, h('img', { src: uiIcon('backpack') })));
       this.mmBtns.append(h('button.mbtn', { onclick: () => { this.chat.classList.toggle('min'); }, title: 'Chat' }, h('img', { src: uiIcon('chat') })));
-      this.mmBtns.append(h('button.mbtn', { onclick: () => this.toggleMenuGrid(), title: L('Menü|Menu') }, h('img', { src: uiIcon('gear') })));
       this.chat.classList.add('min');
     }
   },
 
   toggleMenuGrid() {
     if (this.menuGrid) { this.menuGrid.remove(); this.menuGrid = null; return; }
-    const items = [['char', 'person', 'menuChar'], ['bag', 'backpack', 'menuBag'], ['skills', 'book_open', 'menuSkills'], ['talents', 'talent', 'menuTalents'], ['quests', 'quest_exclaim', 'menuQuests'], ['map', 'map', 'menuMap'],
-      ['craft', 'hammer_anvil', 'menuCraft'], ['social', 'users', 'menuSocial'], ['dungeon', 'dungeon', 'menuDungeon'], ['arena', 'sword_cross', 'menuArena'], ['market', 'scales', 'menuMarket'], ['ach', 'trophy', 'menuAch'], ['collect', 'horse', 'menuCollect'], ['home', 'house', 'menuHome'], ['settings', 'gear', 'settings']];
+    const GROUPS = [
+      [L('Karakter|Character'), [['char', 'person', 'menuChar', 'C'], ['bag', 'backpack', 'menuBag', 'B'], ['skills', 'book_open', 'menuSkills', 'K'], ['talents', 'talent', 'menuTalents', 'N'], ['collect', 'horse', 'menuCollect', 'V'], ['ach', 'trophy', 'menuAch', 'Y']]],
+      [L('Dünya|World'), [['quests', 'quest_exclaim', 'menuQuests', 'L'], ['map', 'map', 'menuMap', 'M'], ['dungeon', 'dungeon', 'menuDungeon', 'H'], ['arena', 'sword_cross', 'menuArena', 'Z'], ['home', 'house', 'menuHome', 'E']]],
+      [L('Ekonomi & Sosyal|Economy & Social'), [['craft', 'hammer_anvil', 'menuCraft', 'J'], ['market', 'scales', 'menuMarket', 'U'], ['social', 'users', 'menuSocial', 'O']]],
+    ];
     const close = () => { this.menuGrid?.remove(); this.menuGrid = null; };
-    const grid = h('div.panel', { style: { position: 'fixed', inset: 'calc(10px + var(--safe-t)) calc(10px + var(--safe-r)) calc(10px + var(--safe-b)) calc(10px + var(--safe-l))', zIndex: 34, display: 'flex', flexDirection: 'column', padding: '12px' } },
-      h('div.row', h('div.title', { style: { flex: 1, fontSize: '18px' } }, L('Menü|Menu')), h('button.btn.ghost.small', { onclick: close }, '✕')),
-      h('div', { style: { display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(92px, 1fr))', gap: '8px', marginTop: '10px', overflow: 'auto' } },
-        ...items.map(([id, ic, key]) => h('button.card.click', { style: { display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '6px', padding: '10px 4px', color: 'var(--ink)', font: 'inherit' }, onclick: () => { close(); UI.open(id); } }, h('img.ico.l', { src: uiIcon(ic) }), h('span', { style: { fontSize: '12px', fontWeight: 800, textAlign: 'center' } }, t(key))))));
-    UI.root.append(grid); this.menuGrid = grid;
+    const tile = ([id, ic, key, kb]) => h('button.mtile', { onclick: () => { close(); UI.open(id); } }, h('img', { src: uiIcon(ic) }), h('span', t(key)), UI.touch ? null : h('kbd', kb));
+    const ch = G.char;
+    const box = h('div.mainmenu.panel',
+      h('div.mm-head', h('div.title', L('Menü|Menu')), ch ? h('div.mm-gold', h('img', { src: iconURL('coins', { size: 32, ...ICON_THEMES.gold }) }), fmtGold(ch.gold)) : null, h('button.x', { onclick: close }, '✕')),
+      ...GROUPS.map(([title, items]) => h('section', h('h4', title), h('div.mm-grid', ...items.map(tile)))),
+      h('div.mm-foot',
+        h('button.btn.ghost', { onclick: () => { close(); UI.open('settings'); } }, '⚙ ' + t('settings')),
+        h('button.btn.ghost', { onclick: () => { close(); G.endSession?.(); G.title.worldReady = false; G.title.show(); G.title.screen = 'select'; G.title.render(); } }, L('Karakter Seçimine Dön|Back to Character Select'))));
+    const bg = h('div.mainmenu-bg', { onpointerdown: e => { if (e.target === bg) close(); } }, box);
+    UI.root.append(bg); this.menuGrid = bg;
   },
 
   // ------------------------------------------------------------ chat

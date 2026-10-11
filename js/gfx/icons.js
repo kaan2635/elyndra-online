@@ -435,9 +435,25 @@ function xf(layers, ...ms) {
 const retone = (layers, map) => layers.map(([t, d, o]) => [map[t] || t, d, o]);
 
 const BUILT = new Map();
+// Professional glyphs from game-icons.net (CC BY 3.0), loaded from assets/icons.json at boot.
+// When present they replace the hand-authored vector glyph of the same name; colours, backgrounds
+// and frames still come from the theme system below.
+let GI = null;
+export function setIconGlyphs(data) { GI = data; BUILT.clear(); ICON_CACHE?.clear?.(); URL_CACHE?.clear?.(); }
+function giGlyph(name) {
+  const ds = GI && GI[name]; if (!ds || typeof Path2D === 'undefined') return null;
+  const s = 50 / 512, m = new DOMMatrix([s, 0, 0, s, 7, 7]);
+  const path = new Path2D();
+  for (const d of ds) path.addPath(new Path2D(d), m);
+  const L = { tone: 'base', o: {}, lw: 0, line: false, path, bb: [7, 7, 57, 57], rule: 'nonzero', alpha: 1, outlined: true, hi: true, gloss: false };
+  const raw = RAW[name];
+  return { layers: [L], outline: path, solid: path, lines: [], fill: raw ? raw.fill : ['#f4f1ea', '#b9b2a2'], bg: raw?.m?.bg };
+}
 function getGlyph(name) {
   let g = BUILT.get(name);
   if (g) return g;
+  g = giGlyph(name);
+  if (g) { BUILT.set(name, g); return g; }
   const raw = RAW[name] || RAW.__unknown;
   const meta = raw.m || {};
   const layers = raw.L.map(([tone, d, o]) => ({ tone, o: o || {}, lw: (o && o.l) || 0, subs: parsePath(d) }));

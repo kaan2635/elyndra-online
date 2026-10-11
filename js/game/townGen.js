@@ -41,9 +41,9 @@ export function genTown(t) {
       const [slot, kind] = sp;
       if (kind === 'temple') { S.push({ type: 'temple', x, z, rot: face, style: st, w: 9, d: 7 }); A[slot] = front(6.5); continue; }
       if (kind === 'tower') { S.push({ type: 'tower', x, z, rot: face, style: st, r: 2.6, h: 11, flag: 0x3a5aa8 }); A[slot] = front(4.2); continue; }
-      if (kind === 'smithy') { S.push({ type: 'house', x, z, rot: face, style: st, ...opts, floors: 1 }); const [ax, az] = front(4.6); S.push({ type: 'anvil', x: ax, z: az, rot: face + Math.PI / 2, style: st }); A[slot] = front(6.2); continue; }
-      if (kind === 'inn') { S.push({ type: 'house', x, z, rot: face, style: st, w: 7, d: 5, floors: 2 }); A[slot] = front(4.5); continue; }
-      if (kind === 'stable') { S.push({ type: 'house', x, z, rot: face, style: st, w: 6, d: 4, floors: 1, chimney: false }); const [fx, fz] = front(5); S.push({ type: 'fence', x: fx, z: fz, rot: face + Math.PI / 2, style: st, l: 7 }); A[slot] = front(3.6); continue; }
+      if (kind === 'smithy') { S.push({ type: 'house', kit: 'blacksmith', x, z, rot: face, style: st, ...opts, floors: 1 }); const [ax, az] = front(4.6); S.push({ type: 'anvil', x: ax, z: az, rot: face + Math.PI / 2, style: st }); A[slot] = front(6.2); continue; }
+      if (kind === 'inn') { S.push({ type: 'house', kit: 'tavern', x, z, rot: face, style: st, w: 7, d: 5, floors: 2 }); A[slot] = front(4.5); continue; }
+      if (kind === 'stable') { S.push({ type: 'house', kit: 'barracks', x, z, rot: face, style: st, w: 6, d: 4, floors: 1, chimney: false }); const [fx, fz] = front(5); S.push({ type: 'fence', x: fx, z: fz, rot: face + Math.PI / 2, style: st, l: 7 }); A[slot] = front(3.6); continue; }
       S.push({ type, x, z, rot: face, style: st, ...opts }); A[slot] = front(type === 'treehouse' ? 4 : 4.2); continue;
     }
     S.push({ type, x, z, rot: face, style: st, ...opts });
@@ -55,7 +55,7 @@ export function genTown(t) {
     const a = (i + 0.5) / nStalls * Math.PI * 2 + 0.6;
     if (nearGate(a, 0.3)) continue;
     const [x, z] = P(a, rp + 3.2);
-    S.push({ type: st === 'desert' ? 'tent' : 'stall', x, z, rot: Math.atan2(t.x - x, t.z - z), style: st, s: st === 'desert' ? 0.8 : 1 });
+    S.push({ type: 'stall', x, z, rot: Math.atan2(t.x - x, t.z - z), style: st });
     A['stall' + i] = P(a, rp + 0.8);
   }
   // lamps
@@ -76,7 +76,7 @@ export function genTown(t) {
       if (nearGate(am, 0.25)) {
         if (gates.some(g => Math.abs(((am - g + Math.PI * 3) % (Math.PI * 2)) - Math.PI) < Math.PI / segs + 0.01)) {
           const [gx, gz] = P(am, R);
-          S.push({ type: t.wall === 'palisade' ? 'gate' : 'gate', x: gx, z: gz, rot: -rot, style: st, w: 6 });
+          S.push({ type: 'gate', wallType: t.wall, x: gx, z: gz, rot: -rot, style: st, w: 6 });
         }
         continue;
       }

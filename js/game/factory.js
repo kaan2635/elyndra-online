@@ -32,7 +32,7 @@ export function spawnMonster(id, level, x, z, o = {}) {
   u.speed = tpl.speed ?? 5;
   u.yaw = Math.random() * Math.PI * 2;
   u.recalc(); u.hp = u.stats.maxHp;
-  const spec = { ...tpl.model };
+  const spec = { ...tpl.model, mob: id };
   if (tpl.scale && !spec.scale) spec.scale = tpl.scale;
   if (u.elite && !tpl.rare && !u.isBoss) spec.scale = (spec.scale || 1) * 1.25;
   u.setModel(spec);
@@ -58,7 +58,7 @@ export function summon(owner, id, o = {}) {
     u.base = { hp: Math.round(80 * s * (tpl.hp ?? 1) * 1.6 * hpBonus), dmg: (owner.stats.power || 10) * 0.5 * (tpl.dmg ?? 0.5) + 4 * s * (tpl.dmg ?? 0.5), armor: 10 * s };
     u.speed = tpl.speed ?? 7;
     u.recalc(); u.hp = u.stats.maxHp;
-    u.setModel({ ...tpl.model });
+    u.setModel({ ...tpl.model, mob: id });
     new PetAI(u, owner);
     owner.summons.push(u);
     G.world.addUnit(u);

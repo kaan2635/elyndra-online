@@ -13,6 +13,7 @@ export function newCharacter(o) {
   const C = CLASSES[o.cls];
   const ch = {
     id: uid('c'), name: o.name, race: o.race, cls: o.cls, body: o.body || 0, skin: o.skin, hair: o.hair, hairColor: o.hairColor, beard: o.beard || 0, eyes: o.eyes,
+    outfit: o.outfit ?? null, outfitSat: o.outfitSat ?? null, outfitDark: o.outfitDark || 0, hideHelm: !!o.hideHelm,
     level: 1, xp: 0, rested: 0, gold: 15, zone: 'vale', x: 0, z: 100,
     equip: {}, bag: [], bagUpgrades: 0, bar: [], talents: {},
     quests: { active: {}, done: {}, tracked: [] }, prof: {}, recipes: [], rep: {}, waystones: [], zonesSeen: [],

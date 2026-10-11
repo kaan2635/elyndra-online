@@ -26,6 +26,16 @@ export const MOUNTS = {
   ram: { name: 'Dağ Koçu|Mountain Ram', spec: { rig: 'quad', kind: 'deer', c: 0xd8d0c0, c2: 0x8a7a60, scale: 1.7, feat: { saddle: 0x5a3a22, horns: 0xc8b088 } }, speed: 1.8, price: 2500, lvl: 30, src: 'Ayazkale Ahırı|Frosthold Stables' },
   salamander: { name: 'Lav Semenderi|Lava Salamander', spec: { rig: 'quad', kind: 'lizard', c: 0xd8501a, c2: 0x5a1a0a, scale: 1.7, feat: { saddle: 0x2a1a1a, fire: 0xffa020 } }, speed: 1.9, price: 8000, lvl: 45, src: 'Küllükale|Ashen Bastion' },
 };
+// 3D looks (see data/looks.js); anything without one keeps its procedural model
+const ML = (a, o = {}) => ({ a: 'mob:' + a, ...o });
+const MOUNT_LOOK = {
+  horse: ML('horse'), horse_white: ML('horse_white'), horse_black: ML('horse', { tint: 0x1a1a1e, tintAmt: 0.8 }), wolf: ML('wolf', { scale: 1.75 }),
+  raptor: ML('alpaca', { tint: 0xc8903a, tintAmt: 0.5 }), frostwolf: ML('wolf', { scale: 1.75, tint: 0xf0f4f8, tintAmt: 0.7, emissive: 0x0a2a4a, emissiveI: 0.3 }),
+  bear: ML('bull', { tint: 0x5a3a2a, tintAmt: 0.6 }), nightmare: ML('horse', { tint: 0x1a0a0a, tintAmt: 0.85, emissive: 0x5a1000, emissiveI: 0.5 }),
+  bonehorse: ML('horse_white', { tint: 0xe8e0c8, tintAmt: 0.5, emissive: 0x0a2a4a, emissiveI: 0.4 }), golden: ML('horse_white', { tint: 0xf0c040, tintAmt: 0.55, emissive: 0x3a2a00, emissiveI: 0.4 }),
+  ram: ML('stag', { tint: 0xd8d0c0, tintAmt: 0.5 }), salamander: ML('bull', { tint: 0xd8501a, tintAmt: 0.6, emissive: 0x501000, emissiveI: 0.5 }),
+};
+for (const id in MOUNT_LOOK) if (MOUNTS[id]) MOUNTS[id].spec.look = MOUNT_LOOK[id];
 export const PETS = {
   bunny: { name: 'Pofuduk|Fluffy Bunny', spec: { rig: 'quad', kind: 'rabbit', c: 0xf0e8e0, scale: 1.1 }, src: 'Başarım: İlk Adımlar|Achievement: First Steps' },
   fox_pet: { name: 'Kızıl Tilki|Ember Fox', spec: { rig: 'quad', kind: 'wolf', c: 0xd8743a, c2: 0xf0e8e0, scale: 0.45 }, src: 'Başarım: Kâşif|Achievement: Explorer' },
@@ -38,6 +48,13 @@ export const PETS = {
   skelly: { name: 'Kemik Dost|Bonebuddy', spec: { rig: 'humanoid', race: 'skeleton', skin: 0xe8e0c8, shirt: 0xe8e0c8, pants: 0xe8e0c8, scale: 0.4, feat: { skull: true, bones: true, glowEyes: 0x8affc8 }, gear: {} }, src: 'Başarım: Ölümsüzler Avcısı|Achievement: Undead Slayer' },
   penguin_pet: { name: 'Kar Topu|Snowball', spec: { rig: 'quad', kind: 'rabbit', c: 0xffffff, scale: 1.0 }, src: 'Buzdoruk|Frostpeak' },
 };
+const PET_LOOK = {
+  bunny: ML('bunny', { scale: 0.42, tint: 0xf8f0e8, tintAmt: 0.3 }), fox_pet: ML('fox', { scale: 0.6 }), slimey: ML('slime', { scale: 0.4, tint: 0x8aff6a, tintAmt: 0.6 }),
+  wispy: ML('ghost', { scale: 0.32, tint: 0xb8ffe8, tintAmt: 0.75, emissive: 0x2a8a5a, emissiveI: 0.8, opacity: 0.8 }), batling: ML('bat', { scale: 0.6 }),
+  drakeling: ML('drake', { scale: 0.3 }), scarab_pet: ML('crab', { scale: 0.35, tint: 0xf0c040, tintAmt: 0.7 }), lamb: ML('sheep', { scale: 0.55 }),
+  skelly: { a: 'char:skeleton_minion', scale: 0.4, glow: 0x6af0ff }, penguin_pet: ML('bunny', { scale: 0.42, tint: 0xffffff, tintAmt: 0.7 }),
+};
+for (const id in PET_LOOK) if (PETS[id]) PETS[id].spec.look = PET_LOOK[id];
 export const TITLES = {
   bearer: 'Kristal Taşıyıcı|the Crystal Bearer', slayer: 'Canavar Avcısı|the Monster Slayer', explorer: 'Kâşif|the Explorer', fisher: 'Balıkçı Reis|the Angler',
   rich: 'Zengin|the Wealthy', hero: 'Aydınköy Kahramanı|Hero of Dawnhollow', dragonslayer: 'Ejderha Avcısı|the Dragonslayer', savior: 'Elyndra\'nın Kurtarıcısı|Savior of Elyndra',

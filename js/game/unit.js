@@ -2,7 +2,20 @@
 import * as THREE from 'three';
 import { G } from '../core/state.js';
 import { clamp, dampAngle, uid, angleDiff } from '../core/util.js';
-import { buildModel, disposeModel } from '../gfx/models.js';
+import { buildModel, disposeModel as disposeProc } from '../gfx/models.js';
+import { buildGModel, lookReady, ASSETS, ANIMS, WEAPONS } from '../gfx/gmodel.js';
+import { Assets } from '../gfx/assets.js';
+import { resolveLook } from '../data/looks.js';
+// glTF models when their assets are loaded, procedural otherwise (then swapped in once loaded)
+export function makeModel(spec, onLater) {
+  const look = resolveLook(spec);
+  if (look && ASSETS[look.a]) {
+    if (lookReady(look)) { try { return buildGModel(look, spec); } catch (e) { console.warn('model', look.a, e); } }
+    else if (onLater) Assets.preload([ASSETS[look.a][0], ...(ASSETS[look.a][2] === 'hum' ? [ANIMS, WEAPONS] : [])]).then(onLater, () => {});
+  }
+  return buildModel(spec);
+}
+const disposeModel = m => { if (!m) return; if (m.gltf) m.dispose(); else disposeProc(m); };
 import { createAnimState, updateAnim, playAct } from '../gfx/anim.js';
 import { blobShadowMaterial } from '../gfx/materials.js';
 import { RES } from '../data/classes.js';
@@ -56,7 +69,8 @@ export class Unit {
   setModel(spec) {
     if (this.model) disposeModel(this.model);
     this.modelSpec = spec;
-    this.model = buildModel(spec);
+    this.model = makeModel(spec, () => { if (!this.removed && this.modelSpec === spec) this.setModel(spec); });
+    this.model.unit = this;
     this.group.add(this.model.mesh);
     this.height = this.model.height || 2;
     this.radius = Math.max(0.35, (this.model.radius || 0.5) * 0.9);
@@ -67,7 +81,7 @@ export class Unit {
   setMount(spec) {
     if (this.mount) { disposeModel(this.mount); this.mount = null; this.mountAnim = null; }
     if (spec) {
-      this.mount = buildModel(spec);
+      this.mount = makeModel(spec);
       this.mountAnim = createAnimState();
       this.group.add(this.mount.mesh);
       this.anim.ride = true;
@@ -78,7 +92,7 @@ export class Unit {
     if (!this.model) return;
     if (this.mount) {
       const sy = (this.mount.saddleY || 1.1) * (this.mount.scale || 1);
-      this.model.mesh.position.set(0, sy - 0.62 * (this.model.scale || 1), -0.1);
+      this.model.mesh.position.set(0, sy - (this.model.gltf ? this.model.height * 0.36 : 0.62 * (this.model.scale || 1)), this.model.gltf ? -0.2 : -0.1);
     } else this.model.mesh.position.set(0, 0, 0);
   }
 
@@ -196,15 +210,25 @@ export class Unit {
         updateAnim(this.mount, this.mountAnim, dt);
       }
       // hit flash
-      if (this.flash > 0) {
+      const md = this.model;
+      if (md.gltf) {
+        if (this.flash > 0) { this.flash = Math.max(0, this.flash - dt * 5); md.setFlash(this.flash); md._fl = true; }
+        else if (md._fl) { md.setFlash(0); md._fl = false; }
+      } else if (this.flash > 0) {
         this.flash = Math.max(0, this.flash - dt * 5);
-        this.model.mesh.material.emissive.setRGB(this.flash * 0.9, this.flash * 0.85, this.flash * 0.8);
-      } else if (this.model.mesh.material.emissive.r !== 0 && !this._glowE) this.model.mesh.material.emissive.setRGB(0, 0, 0);
+        md.mesh.material.emissive.setRGB(this.flash * 0.9, this.flash * 0.85, this.flash * 0.8);
+      } else if (md.mesh.material.emissive.r !== 0 && !this._glowE) md.mesh.material.emissive.setRGB(0, 0, 0);
       // stealth transparency
       const st = this.hasFlag('stealth');
-      const m = this.model.mesh.material;
-      if (st && !m._st) { m.transparent = true; m.opacity = this.kind === 'player' ? 0.45 : 0.2; m._st = true; m.needsUpdate = true; }
-      else if (!st && m._st) { m.transparent = !!this._baseTransparent; m.opacity = this._baseOpacity ?? 1; m._st = false; m.needsUpdate = true; }
+      if (st !== !!md._st) {
+        md._st = st;
+        const mats = md.gltf ? md.materials : [md.mesh.material];
+        for (const m of mats) {
+          if (st) { m.userData.t0 = m.transparent; m.userData.o0 = m.opacity; m.transparent = true; m.opacity = this.kind === 'player' ? 0.45 : 0.2; }
+          else { m.transparent = !!m.userData.t0; m.opacity = m.userData.o0 ?? 1; }
+          m.needsUpdate = true;
+        }
+      }
     }
   }
 

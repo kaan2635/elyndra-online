@@ -12,7 +12,7 @@ import { createHero, appearanceSpec } from '../game/hero.js';
 import { Audio } from '../audio.js';
 import { U } from '../gfx/materials.js';
 
-const STAGE = { x: 0, z: 84 }; // town plaza
+const STAGE = { x: 3, z: 138, yaw: 0.12 }; // outside Dawnhollow's south gate, the village behind the hero
 
 export const Title = {
   el: null, screen: 'title', preview: [], sel: 0, t: 0,
@@ -98,53 +98,76 @@ export const Title = {
   // ------------------------------------------------------------ creation
   newChar() {
     const race = choice(RACE_IDS), R = RACES[race];
-    this.draft = { name: '', race, cls: choice(CLASS_IDS), body: Math.random() < 0.5 ? 0 : 1, skin: R.skins[1], hair: Math.floor(Math.random() * 8), hairColor: HAIR[Math.floor(Math.random() * 6)], beard: R.beardDefault, eyes: EYES[0] };
-    this.step = 0;
+    this.draft = { name: '', race, cls: choice(CLASS_IDS), body: 0, skin: R.skins[1], hair: 0, hairColor: HAIR[0], beard: R.beardDefault, eyes: EYES[0], outfit: null, outfitSat: null, outfitDark: 0, hideHelm: false, hideCape: false };
+    this.tab = 'class';
+    this.rot = 0; this.zoom = false;
   },
   renderCreate() {
     const d = this.draft;
     this.setPreview(d, true);
     const R = RACES[d.race], C = CLASSES[d.cls];
-    const left = h('div.side.panel');
-    const right = h('div.side.right.panel');
-    // race
-    left.append(h('div.title', { style: { fontSize: '17px' } }, t('charCreate')));
-    left.append(h('div.lab.muted', t('race')));
-    const rg = h('div.choice-grid', { style: { gridTemplateColumns: 'repeat(4,1fr)' } });
-    for (const id of RACE_IDS) rg.append(h('div.choice' + (d.race === id ? '.on' : ''), { onclick: () => { d.race = id; d.skin = RACES[id].skins[1]; d.beard = RACES[id].beardDefault; this.render(); } }, h('img.ico', { src: iconURL(id === 'orc' ? 'fist' : id === 'elf' ? 'renew' : id === 'dwarf' ? 'hammer' : 'person', { size: 64, ...ICON_THEMES.ui }) }), L(RACES[id].name)));
-    left.append(rg, h('div.muted', { style: { fontSize: '12px' } }, L(R.desc) + ' ', h('span.good', L(R.bonusText))));
-    // class
-    left.append(h('div.lab.muted', { style: { marginTop: '6px' } }, t('class')));
-    const cg = h('div.choice-grid');
-    for (const id of CLASS_IDS) { const c = CLASSES[id]; cg.append(h('div.choice' + (d.cls === id ? '.on' : ''), { onclick: () => { d.cls = id; this.render(); Audio.sfx('equip', { vol: 0.5 }); } }, h('img.ico', { src: iconURL(c.icon, { size: 64, ...ICON_THEMES.ui, frame: c.color }) }), h('span', { style: { color: d.cls === id ? c.color : '' } }, L(c.name)))); }
-    left.append(cg);
-    left.append(h('div.card', h('div.row', h('b', { style: { color: C.color } }, L(C.name)), h('span.chip', L(C.roleName)), h('span.spacer'), h('span.muted', { style: { fontSize: '12px' } }, L('Zorluk |Difficulty ') + '★'.repeat(C.difficulty) + '☆'.repeat(3 - C.difficulty))),
-      h('div', { style: { fontSize: '12.5px', marginTop: '6px', lineHeight: '1.45', color: 'var(--ink2)' } }, L(C.desc)),
-      h('div.row.wrap', { style: { marginTop: '8px', gap: '4px' } }, ...CLASS_SKILLS[d.cls].map(id => UI.tip(h('img.ico.s', { src: skillIcon(SKILLS[id]) }), () => h('div', h('div.tn', L(SKILLS[id].name)), h('div.ts', L('Seviye |Level ') + SKILLS[id].lvl), h('div.desc', SKILLS[id].desc({ level: 10, stats: { power: 40, crit: 5, healPct: 0, haste: 0 }, tal: () => 0 }, G.X))))))));
-    // appearance
-    const step = (lab, val, fn, n) => h('div.opt-row', h('span.lab', lab), h('div.stepper', h('button', { onclick: () => fn(-1) }, '‹'), h('span', val), h('button', { onclick: () => fn(1) }, '›')));
-    const sw = (list, cur, fn) => h('div.swatches', ...list.map(c => h('div.swatch' + (c === cur ? '.on' : ''), { style: { background: '#' + c.toString(16).padStart(6, '0') }, onclick: () => fn(c) })));
-    right.append(h('div.title', { style: { fontSize: '16px' } }, t('appearance')));
-    right.append(step(t('body'), d.body ? L('Tip B|Type B') : L('Tip A|Type A'), () => { d.body = d.body ? 0 : 1; this.render(); }));
-    right.append(h('div.opt-row', h('span.lab', t('skin')), sw(R.skins, d.skin, c => { d.skin = c; this.render(); })));
-    const hairNames = ['Kısa|Short', 'Uzun|Long', 'At Kuyruğu|Ponytail', 'Mohikan|Mohawk', 'Topuz|Bun', 'Kel|Bald', 'Dikenli|Spiky', 'Örgülü|Braids'];
-    right.append(step(t('hair'), L(hairNames[d.hair]), k => { d.hair = (d.hair + k + 8) % 8; this.render(); }));
-    right.append(h('div.opt-row', h('span.lab', t('hairColor')), sw(HAIR, d.hairColor, c => { d.hairColor = c; this.render(); })));
-    right.append(step(t('beard'), [L('Yok|None'), L('Kısa|Short'), L('Uzun|Long'), L('Örgülü|Braided')][d.beard], k => { d.beard = (d.beard + k + 4) % 4; this.render(); }));
-    right.append(h('div.opt-row', h('span.lab', t('eyes')), sw(EYES, d.eyes, c => { d.eyes = c; this.render(); })));
-    right.append(h('button.btn.small.ghost', { onclick: () => { const keep = { name: d.name, race: d.race, cls: d.cls }; this.newChar(); Object.assign(this.draft, keep); this.draft.skin = RACES[keep.race].skins[Math.floor(Math.random() * 6)]; this.render(); } }, '🎲 ' + t('random')));
-    right.append(h('hr.sep'));
-    const nameIn = h('input.txt-in', { value: d.name, maxlength: 14, placeholder: t('name') });
+    const sec = (title, ...kids) => h('section.cc-sec', h('h3', title), ...kids);
+    // --- identity: race + class
+    const races = h('div.cc-grid.cc-races');
+    for (const id of RACE_IDS) races.append(h('button.cc-opt' + (d.race === id ? '.on' : ''), { onclick: () => { d.race = id; d.skin = RACES[id].skins[1]; this.render(); } },
+      h('img', { src: iconURL(id === 'orc' ? 'fist' : id === 'elf' ? 'moon' : id === 'dwarf' ? 'hammer' : 'person', { size: 64, ...ICON_THEMES.ui }) }), h('span', L(RACES[id].name))));
+    const classes = h('div.cc-grid.cc-classes');
+    for (const id of CLASS_IDS) {
+      const c = CLASSES[id];
+      classes.append(h('button.cc-opt' + (d.cls === id ? '.on' : ''), { style: { '--accent': c.color }, onclick: () => { d.cls = id; d.outfit = null; d.outfitSat = null; d.outfitDark = 0; this.render(); Audio.sfx('equip', { vol: 0.5 }); } },
+        h('img', { src: iconURL(c.icon, { size: 64, ...ICON_THEMES.ui, frame: c.color }) }), h('span', L(c.name)), h('small', L(c.roleName))));
+    }
+    const classInfo = h('div.cc-info',
+      h('div.cc-info-head', h('b', { style: { color: C.color } }, L(C.name)), h('span.chip', L(C.roleName)), h('span.cc-diff', '★'.repeat(C.difficulty) + '☆'.repeat(3 - C.difficulty))),
+      h('p', L(C.desc)),
+      h('div.cc-skills', ...CLASS_SKILLS[d.cls].slice(0, 6).map(id => UI.tip(h('img', { src: skillIcon(SKILLS[id]) }), () => h('div', h('div.tn', L(SKILLS[id].name)), h('div.ts', L('Seviye |Level ') + SKILLS[id].lvl), h('div.desc', SKILLS[id].desc({ level: 10, stats: { power: 40, crit: 5, healPct: 0, haste: 0 }, tal: () => 0 }, G.X)))))),
+      h('p.cc-race', L(R.desc) + ' ', h('span.good', L(R.bonusText))));
+    const identity = h('div.cc-panel.cc-left', sec(t('race'), races), sec(t('class'), classes), classInfo);
+    // --- appearance
+    const sw = (list, isOn, fn, css) => h('div.cc-swatches', ...list.map((c, i) => h('button.cc-sw' + (isOn(c, i) ? '.on' : ''), { style: { background: css(c) }, onclick: () => fn(c) })));
+    const hex = c => '#' + c.toString(16).padStart(6, '0');
+    const OUTFITS = [null, { h: 0, s: 1 }, { h: 24, s: 1 }, { h: 45, s: 0.85 }, { h: 100, s: 0.8 }, { h: 135, s: 0.8 }, { h: 178, s: 0.9 }, { h: 212, s: 1 }, { h: 250, s: 0.9 }, { h: 282, s: 0.9 }, { h: 322, s: 0.9 }, { h: 220, s: 0.15, d: 0.45 }, { h: 30, s: 0.12 }];
+    const oCss = o => o ? `hsl(${o.h},${Math.round(Math.min(1, o.s) * 70)}%,${o.d ? 22 : o.s < 0.2 ? 82 : 46}%)` : 'conic-gradient(#c84a3a,#d8b04a,#4a9a4a,#3a6ab8,#8a4ab8,#c84a3a)';
+    const pickOutfit = o => { d.outfit = o ? o.h : null; d.outfitSat = o ? o.s : null; d.outfitDark = o?.d || 0; };
+    const appearance = h('div.cc-panel.cc-right',
+      sec(t('skin'), sw(R.skins, c => c === d.skin, c => { d.skin = c; this.render(); }, hex)),
+      sec(L('Kıyafet Rengi|Outfit Colour'), sw(OUTFITS, o => (o ? o.h === d.outfit && (o.d || 0) === (d.outfitDark || 0) : d.outfit == null), o => { pickOutfit(o); this.render(); }, oCss)),
+      sec(L('Donanım|Gear'),
+        h('label.cc-toggle', h('input', { type: 'checkbox', checked: d.hideHelm ? null : 'checked', onchange: e => { d.hideHelm = !e.target.checked; this.render(); } }), h('span', L('Başlığı göster|Show headgear'))),
+        h('label.cc-toggle', h('input', { type: 'checkbox', checked: d.hideCape ? null : 'checked', onchange: e => { d.hideCape = !e.target.checked; this.render(); } }), h('span', L('Pelerini göster|Show cape')))),
+      h('button.btn.ghost.small.cc-random', { onclick: () => { const r = choice(RACE_IDS); Object.assign(d, { race: r, skin: choice(RACES[r].skins), cls: choice(CLASS_IDS) }); pickOutfit(choice(OUTFITS)); this.render(); } }, '🎲 ' + t('random')));
+    // --- name + create
+    const err = h('div.cc-err');
+    const nameIn = h('input.txt-in.cc-name', { value: d.name, maxlength: 14, placeholder: t('name') });
     nameIn.addEventListener('input', () => { d.name = nameIn.value; });
-    nameIn.addEventListener('keydown', e => e.stopPropagation());
-    right.append(h('div.lab.muted', t('name')), h('div.row', nameIn, h('button.btn', { onclick: () => { d.name = randomName(); nameIn.value = d.name; } }, '🎲')));
-    const err = h('div.bad', { style: { fontSize: '12px', minHeight: '16px' } });
-    right.append(err);
-    const el = h('div.charsel', left, right,
-      h('div.bottom',
-        h('button.btn.ghost', { onclick: () => { this.screen = G.account.characters.length ? 'select' : 'title'; this.render(); } }, '← ' + t('back')),
-        h('button.btn.primary.big', { onclick: () => this.create(nameIn.value, err) }, t('create'))));
+    nameIn.addEventListener('keydown', e => { e.stopPropagation(); if (e.key === 'Enter') this.create(nameIn.value, err); });
+    const bottom = h('div.cc-bottom',
+      h('button.btn.ghost', { onclick: () => { this.screen = G.account.characters.length ? 'select' : 'title'; this.render(); } }, '← ' + t('back')),
+      h('div.cc-namebox', nameIn, h('button.btn.icon-btn', { title: t('random'), onclick: () => { d.name = randomName(); nameIn.value = d.name; } }, '🎲')),
+      h('button.btn.primary.big', { onclick: () => this.create(nameIn.value, err) }, t('create')), err);
+    // --- view controls (rotate / zoom) over the character
+    const view = h('div.cc-view',
+      h('button.cc-vbtn', { title: L('Sola döndür|Rotate left'), onclick: () => { this.rot -= Math.PI / 4; } }, '⟲'),
+      h('button.cc-vbtn' + (this.zoom ? '.on' : ''), { title: L('Yüze yakınlaştır|Zoom to face'), onclick: e => { this.zoom = !this.zoom; e.currentTarget.classList.toggle('on', this.zoom); } }, '⌕'),
+      h('button.cc-vbtn', { title: L('Sağa döndür|Rotate right'), onclick: () => { this.rot += Math.PI / 4; } }, '⟳'),
+      h('div.cc-hint', L('Döndürmek için karakteri sürükle|Drag the character to rotate')));
+    // mobile: tabbed bottom sheet
+    const TABS = [['class', L('Irk & Sınıf|Race & Class')], ['look', L('Görünüm|Appearance')]];
+    const tabs = h('div.cc-tabs', ...TABS.map(([k, lab]) => h('button' + (this.tab === k ? '.on' : ''), { dataset: { k }, onclick: () => { this.tab = k; this.el.dataset.tab = k; this.el.querySelectorAll('.cc-tabs button').forEach(b => b.classList.toggle('on', b.dataset.k === k)); } }, lab)));
+    const el = h('div.cc', { dataset: { tab: this.tab } }, h('div.cc-title', t('charCreate')), identity, appearance, view, tabs, bottom);
     this.el = el; UI.root.append(el);
+    this.bindDrag();
+  },
+  // drag on the 3D view rotates the preview character
+  bindDrag() {
+    if (this._drag) return;
+    const gl = document.getElementById('gl');
+    let down = null;
+    gl.addEventListener('pointerdown', e => { if (G.mode === 'title' && this.screen !== 'title') down = { x: e.clientX, rot: this.rot }; });
+    window.addEventListener('pointermove', e => { if (down) this.rot = down.rot + (e.clientX - down.x) * 0.012; });
+    window.addEventListener('pointerup', () => { down = null; });
+    gl.addEventListener('wheel', e => { if (G.mode === 'title' && this.screen !== 'title') this.zoom = e.deltaY < 0; }, { passive: true });
+    this._drag = true;
   },
   create(name, errEl) {
     name = (name || '').trim().replace(/\s+/g, '');
@@ -160,7 +183,7 @@ export const Title = {
   // ------------------------------------------------------------ 3D preview
   clearPreview() { for (const u of this.preview) G.world.removeUnit(u, true); this.preview = []; },
   setPreview(ch, draft) {
-    const key = JSON.stringify([ch.race, ch.cls, ch.body, ch.skin, ch.hair, ch.hairColor, ch.beard, ch.eyes, ch.level, draft ? 0 : ch.id]);
+    const key = JSON.stringify([ch.race, ch.cls, ch.skin, ch.outfit, ch.outfitSat, ch.outfitDark, ch.hideHelm, ch.hideCape, ch.level, draft ? 0 : ch.id]);
     if (this._pk === key && this.preview.length) return;
     this._pk = key;
     this.clearPreview();
@@ -168,11 +191,11 @@ export const Title = {
     const u = createHero(tmp, 'npc');
     u.team = 'neutral'; u.ai = null;
     u.pos.set(STAGE.x, 0, STAGE.z);
-    u.yaw = 0;
+    u.yaw = STAGE.yaw;
     G.world.addUnit(u);
-    u.anim.emote = { type: draft ? 'salute' : 'wave', t: 0, dur: 1.6 };
+    u.anim.emote = { type: 'cheer', t: 0, dur: 1.4 };
     this.preview.push(u);
-    G.vfx.burst(u.pos, 'holy', { n: 20 });
+    if (!draft) G.vfx.burst(u.pos, 'holy', { n: 20 });
   },
   update(dt) {
     this.t += dt;
@@ -180,13 +203,22 @@ export const Title = {
     const u = this.preview[0];
     if (u) {
       u.update(dt);
-      if (Math.random() < dt * 0.08 && !u.anim.emote) u.anim.emote = { type: choice(['wave', 'cheer', 'laugh', 'point', 'salute', 'dance']), t: 0, dur: 2.5 };
-      // camera framing: character on screen center/right
+      if (Math.random() < dt * 0.05 && !u.anim.emote && !u.anim.act) u.playAct(choice(['slash', 'cast', 'raise', 'block']), 1.1);
+      // camera framing: title = slow orbit; creation/select = facing the character, drag to rotate
       const c = E.cam;
-      c.tDist = this.screen === 'title' ? 34 : 4.6;
-      if (this.screen !== 'title') { c.pitch = clamp(c.pitch, 0.05, 0.5); }
-      const focus = { x: u.pos.x, y: u.pos.y - (this.screen === 'title' ? 0 : 0.55), z: u.pos.z };
-      if (this.screen === 'title') c.yaw += dt * 0.05;
+      let focus;
+      if (this.screen === 'title') {
+        c.tDist = 34; c.yaw += dt * 0.05;
+        focus = { x: u.pos.x, y: u.pos.y, z: u.pos.z };
+      } else {
+        const wide = window.innerWidth > window.innerHeight;
+        c.yaw = STAGE.yaw; c.pitch = damp(c.pitch, this.zoom ? 0.06 : 0.1, 6, dt);
+        c.tDist = this.zoom ? 2.5 : (wide ? 3.7 : 5.2);
+        // the character turns (drag/arrows) instead of the camera so the background stays put
+        u.yaw = damp(u.yaw, c.yaw + (this.rot || 0), 10, dt);
+        focus = { x: u.pos.x, y: u.pos.y + (this.zoom ? 0.05 : (wide ? -0.55 : -0.25)), z: u.pos.z };
+        if (!wide && !this.zoom) focus.y -= 0.9; // portrait: keep the hero in the upper half above the sheet
+      }
       E.updateCamera(dt, focus);
       E.updateLighting(dt, focus);
     } else {
@@ -195,6 +227,7 @@ export const Title = {
       E.updateCamera(dt, f); E.updateLighting(dt, f);
     }
     U.time.value = G.time;
+    if (u && this.screen !== 'title') { U.camPos.value.copy(G.camera.position); U.focus.value.set(u.pos.x, u.pos.y + 1, u.pos.z); U.occ.value = 1; } else U.occ.value = 0;
     const w = G.world;
     if (w.glowMesh) w.glowMesh.material.color.setScalar(0.55 + (1 - (E.daylight ?? 1)) * 0.9);
     if (w.water?.userData.setLight) w.water.userData.setLight(E.sun.position.clone().sub(E.sun.target.position).normalize(), 0.45 + 0.55 * (E.daylight ?? 1));

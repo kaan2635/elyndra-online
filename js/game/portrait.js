@@ -25,23 +25,33 @@ export function renderPortrait(u) {
   const savedPos = mesh.position.clone(), savedRot = mesh.rotation.clone();
   scene.add(mesh);
   mesh.position.set(0, 0, 0); mesh.rotation.set(0, 0, 0);
-  mesh.updateMatrixWorld(true);
-  const head = u.model.bones[3];
-  const hp = new THREE.Vector3(); head.getWorldPosition(hp);
-  const hs = (u.model.scale || 1);
-  cam.position.set(hp.x + 0.25 * hs, hp.y + 0.22 * hs, hp.z + 1.25 * hs);
-  cam.lookAt(hp.x, hp.y + 0.18 * hs, hp.z);
-  const prevTarget = R.getRenderTarget();
-  const prevTone = R.toneMappingExposure;
-  R.setRenderTarget(rt);
-  R.clear();
-  R.render(scene, cam);
+  const R2 = G.engine.renderer;
+  const prevTarget = R2.getRenderTarget();
   const buf = new Uint8Array(SIZE * SIZE * 4);
-  R.readRenderTargetPixels(rt, 0, 0, SIZE, SIZE, buf);
-  R.setRenderTarget(prevTarget);
-  R.toneMappingExposure = prevTone;
-  // restore the model
-  parent.add(mesh); mesh.position.copy(savedPos); mesh.rotation.copy(savedRot);
+  try {
+    mesh.updateMatrixWorld(true);
+    const head = u.model.head || u.model.bones[3];
+    const hp = new THREE.Vector3(); head.getWorldPosition(hp);
+    const hs = (u.model.scale || 1);
+    if (u.model.gltf) {
+      // chibi proportions: the head bone sits at the neck and the head is large
+      const s = u.model.height / 1.95 * 1.0;
+      cam.position.set(hp.x + 0.35 * s, hp.y + 0.42 * s, hp.z + 1.55 * s);
+      cam.lookAt(hp.x, hp.y + 0.36 * s, hp.z);
+    } else {
+      cam.position.set(hp.x + 0.25 * hs, hp.y + 0.22 * hs, hp.z + 1.25 * hs);
+      cam.lookAt(hp.x, hp.y + 0.18 * hs, hp.z);
+    }
+    R2.setRenderTarget(rt);
+    R2.clear();
+    R2.render(scene, cam);
+    R2.readRenderTargetPixels(rt, 0, 0, SIZE, SIZE, buf);
+  } finally {
+    R2.setRenderTarget(prevTarget);
+    // restore the model
+    if (parent) parent.add(mesh); else scene.remove(mesh);
+    mesh.position.copy(savedPos); mesh.rotation.copy(savedRot);
+  }
   // flip vertically into the canvas
   const ctx = canvas.getContext('2d');
   const img = ctx.createImageData(SIZE, SIZE);

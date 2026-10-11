@@ -1,0 +1,37 @@
+<!doctype html>
+<html><head><meta charset="utf-8"><title>Model contact sheet</title>
+<style>body{margin:0;background:#1a1d24;color:#ddd;font:12px sans-serif}#g{display:grid;grid-template-columns:repeat(auto-fill,var(--s,180px));gap:6px;padding:6px}.c{background:#262a33;border-radius:6px;text-align:center}.c img{width:var(--s,180px);height:var(--s,180px);display:block}.c{font-size:10px;overflow:hidden}</style>
+<script type="importmap">{ "imports": { "three": "../lib/three.module.min.js" } }</script>
+</head><body><div id="g"></div>
+<script type="module">
+// Dev tool: renders every GLB listed in ?files=a,b,c (paths relative to this page) to a grid of thumbnails.
+import * as THREE from 'three';
+import { GLTFLoader } from '../lib/addons/loaders/GLTFLoader.js';
+import { MeshoptDecoder } from '../lib/addons/libs/meshopt_decoder.module.js';
+const files = (new URLSearchParams(location.search).get('files') || '').split(',').filter(Boolean);
+const R = new THREE.WebGLRenderer({ antialias: true, preserveDrawingBuffer: true });
+R.setSize(360, 360); R.outputColorSpace = THREE.SRGBColorSpace; R.toneMapping = THREE.ACESFilmicToneMapping;
+const loader = new GLTFLoader(); loader.setMeshoptDecoder(MeshoptDecoder);
+const Q = new URLSearchParams(location.search);
+const anim = Q.get('anim') || 'idle';
+const items = []; if (Q.get('s')) document.body.style.setProperty('--s', Q.get('s') + 'px');
+if (Q.get('pack')) { const g = await loader.loadAsync(Q.get('pack')); for (const c of [...g.scene.children]) items.push({ name: c.name, scene: c, animations: [] }); }
+for (const f of [...files, ...items]) {
+  const g = typeof f === 'string' ? await loader.loadAsync(f).catch(e => null) : f;
+  const div = document.createElement('div'); div.className = 'c';
+  if (!g) { div.textContent = 'FAIL ' + f; document.getElementById('g').append(div); continue; }
+  const scene = new THREE.Scene(); scene.background = new THREE.Color(0x3a4050);
+  scene.add(new THREE.HemisphereLight(0xffffff, 0x445566, 1.6)); const d = new THREE.DirectionalLight(0xffffff, 2.2); d.position.set(3, 5, 4); scene.add(d);
+  scene.add(g.scene);
+  const clip = g.animations.find(a => a.name.toLowerCase().includes(anim)) || g.animations[0];
+  if (clip) { const m = new THREE.AnimationMixer(g.scene); m.clipAction(clip).play(); m.update(0.4); }
+  g.scene.updateMatrixWorld(true);
+  const box = new THREE.Box3().setFromObject(g.scene); const size = box.getSize(new THREE.Vector3()), c = box.getCenter(new THREE.Vector3());
+  const r = Math.max(size.x, size.y, size.z);
+  const cam = new THREE.PerspectiveCamera(35, 1, 0.01, 1000); cam.position.set(c.x + r * 0.9, c.y + r * 0.5, c.z + r * 1.6); cam.lookAt(c);
+  R.render(scene, cam);
+  const img = new Image(); img.src = R.domElement.toDataURL(); div.append(img, (typeof f === 'string' ? f.split('/').pop() : f.name) + ` ${size.x.toFixed(1)}x${size.y.toFixed(1)}x${size.z.toFixed(1)}`);
+  document.getElementById('g').append(div);
+}
+document.title = 'done';
+</script></body></html>

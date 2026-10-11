@@ -115,7 +115,7 @@ export const Events = {
     if (G.world.terrain.isWater(x, zz)) { x = p.pos.x + 10; zz = p.pos.z + 10; }
     const g = spawnMonster('goblin', p.level + 2, x, zz, { name: 'Hazine Goblini|Treasure Goblin', hpMult: 2.5, xpMult: 2, noLoot: true });
     if (!g) return;
-    g.setModel({ ...MONSTERS.goblin.model, skin: 0xd8b04a, scale: 0.9, gear: { chest: { m: 'leather', c: 0x8a5a2a }, main: { m: 'club', c2: 0x6a4a2a }, head: { m: 'crown', c2: 0xffd040 } } });
+    g.setModel({ ...MONSTERS.goblin.model, look: { a: 'mob:orc', scale: 0.8, tint: 0xd8b04a, tintAmt: 0.45 }, skin: 0xd8b04a, scale: 0.9, gear: { chest: { m: 'leather', c: 0x8a5a2a }, main: { m: 'club', c2: 0x6a4a2a }, head: { m: 'crown', c2: 0xffd040 } } });
     g.speed = 7.5; g.data.wanderR = 30; g.alwaysUpdate = true;
     // flees instead of fighting
     g.ai.update = dt => {

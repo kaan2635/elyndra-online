@@ -11,6 +11,7 @@ const FLAG_ALIAS = { ignite: 'mf2', sniper: 'rm2', atonement: 'cd3', legion: 'nl
 export function appearanceSpec(ch, u) {
   return {
     rig: 'humanoid', race: ch.race, body: ch.body || 0, skin: ch.skin, hair: ch.hair, hairColor: ch.hairColor, beard: ch.beard, eyes: ch.eyes,
+    cls: ch.cls, outfit: ch.outfit ?? undefined, outfitSat: ch.outfitSat ?? undefined, outfitDark: ch.outfitDark || 0, hat: ch.hideHelm ? false : undefined, cape: !ch.hideCape,
     gear: gearSpec(u, ch),
   };
 }

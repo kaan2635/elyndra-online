@@ -1,11 +1,51 @@
 // Shared materials. Everything is vertex-coloured low-poly with flat shading.
 import * as THREE from 'three';
 
-export const U = { time: { value: 0 } }; // shared animated uniforms
+// shared animated uniforms; camPos/focus drive the "see-through" fade of occluders (set each frame)
+export const U = { time: { value: 0 }, camPos: { value: new THREE.Vector3() }, focus: { value: new THREE.Vector3() }, occ: { value: 0 } };
 
 const cache = {};
+// Objects right in front of the camera, or between the camera and the hero, dissolve with an
+// ordered dither so trees and buildings never block the view.
+export function camFadeChunks(sh) {
+  sh.uniforms.uCamPos = U.camPos; sh.uniforms.uFocus = U.focus; sh.uniforms.uOcc = U.occ;
+  sh.vertexShader = sh.vertexShader
+    .replace('#include <project_vertex>', `#include <project_vertex>
+  vCamD = -mvPosition.z;
+  vec4 cfw = vec4(transformed, 1.0);
+  #ifdef USE_INSTANCING
+    cfw = instanceMatrix * cfw;
+  #endif
+  vCFW = (modelMatrix * cfw).xyz;`)
+    .replace('void main() {', 'varying float vCamD;\nvarying vec3 vCFW;\nvoid main() {');
+  sh.fragmentShader = sh.fragmentShader.replace('void main() {', `varying float vCamD;
+    varying vec3 vCFW;
+    uniform vec3 uCamPos; uniform vec3 uFocus; uniform float uOcc;
+    float bayer4(vec2 p){ vec2 q = mod(floor(p), 4.0); float i = q.x + q.y * 4.0; return (mod(i * 7.0, 16.0) + 0.5) / 16.0; }
+    void main() {
+      {
+        float cf = smoothstep(1.2, 3.6, vCamD);
+        if (uOcc > 0.5) {
+          vec3 ab = uFocus - uCamPos; float t = clamp(dot(vCFW - uCamPos, ab) / max(dot(ab, ab), 0.001), 0.0, 1.0);
+          float dd = length(vCFW - (uCamPos + ab * t));
+          float occ = (1.0 - smoothstep(1.4, 3.4, dd)) * (1.0 - smoothstep(0.8, 0.93, t)) * step(0.02, t);
+          cf = min(cf, 1.0 - occ * 0.8);
+        }
+        if (cf < 0.999 && bayer4(gl_FragCoord.xy) > cf) discard;
+      }`);
+}
+export function withCamFade(m, key) {
+  const prev = m.onBeforeCompile;
+  m.onBeforeCompile = (sh, r) => { prev?.call(m, sh, r); camFadeChunks(sh); };
+  const pk = m.customProgramCacheKey?.bind(m);
+  m.customProgramCacheKey = () => (pk ? pk() : '') + '|camfade' + (key || '');
+  return m;
+}
 export function lambert(key = 'base', extra = {}) {
-  if (!cache[key]) cache[key] = new THREE.MeshLambertMaterial({ vertexColors: true, flatShading: true, ...extra });
+  if (!cache[key]) {
+    cache[key] = new THREE.MeshLambertMaterial({ vertexColors: true, flatShading: true, ...extra });
+    if (key === 'props' || key === 'structures') withCamFade(cache[key], key);
+  }
   return cache[key];
 }
 export function basic(key = 'basic', extra = {}) {
@@ -33,6 +73,7 @@ export function foliage(amount = 0.06, key = 'foliage') {
     `);
   };
   m.customProgramCacheKey = () => 'foliage' + amount;
+  withCamFade(m, 'fol' + amount);
   cache[key] = m;
   return m;
 }

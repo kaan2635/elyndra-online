@@ -85,7 +85,7 @@ export class World {
     // props
     const props = this.scatterProps(zoneDef, structures);
     for (const p of props) { const cr = COLLIDE[p.type]; if (cr) this.addCircle(p.x, p.z, cr * (p.s ?? 1)); }
-    this.props = buildPropField(props, zoneDef.propColors || {}, T.size, T.seed || 1, 5);
+    this.props = buildPropField(props, zoneDef.propColors || {}, T.size, T.seed || 1, 3);
     this.root.add(this.props);
     // minimap colour map
     this.mapCanvas = this.terrain.mapCanvas(256);
@@ -283,6 +283,8 @@ export class World {
   update(dt) {
     U.time.value = G.time;
     const p = G.player;
+    // see-through for anything between the camera and the hero
+    if (p && G.camera) { U.camPos.value.copy(G.camera.position); U.focus.value.set(p.pos.x, p.pos.y + 1.1, p.pos.z); U.occ.value = 1; } else U.occ.value = 0;
     const fx = p ? p.pos.x : 0, fz = p ? p.pos.z : 0;
     const R2 = this.activeR * this.activeR;
     for (let i = this.units.length - 1; i >= 0; i--) {

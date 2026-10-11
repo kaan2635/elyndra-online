@@ -33,6 +33,7 @@ export function updateAnim(model, a, dt) {
   if (a.act) { a.act.t += dt; if (a.act.t >= a.act.dur && !a.act.loop) a.act = null; }
   if (a.emote) { a.emote.t += dt; if (a.emote.t > (a.emote.dur ?? 9999)) a.emote = null; }
   if (a.hit > 0) a.hit = Math.max(0, a.hit - dt * 4);
+  if (model.gltf) { model.anim.update(a, dt); return; }
   const bones = model.bones;
   if (!model._pose) model._pose = newPose(bones.length);
   const P = model._pose;

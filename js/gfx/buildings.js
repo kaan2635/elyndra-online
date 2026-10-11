@@ -17,6 +17,47 @@ export const STYLES = {
 
 const B = () => new Builder(Math.random() * 1e6);
 
+// ---------------------------------------------------------- glTF kit (KayKit Medieval Hexagon + Halloween)
+import { Assets } from './assets.js';
+import { bake, appendBaked } from './envmodels.js';
+const TOWN = 'env/town.glb', GRAVE = 'env/grave.glb', ITEMS = 'items/items.glb';
+// style -> roof colour variant of the kit and an overall colour multiplier
+const KIT_STYLE = { village: ['red', null], elven: ['green', 0xf0fff0], desert: ['yellow', 0xfff4e0], dwarven: ['blue', 0xe8eef8], fort: ['red', 0x9a8c88], holy: ['blue', 0xffffff], ruin: ['blue', 0x9a96aa] };
+// Which kit model to use for a structure. Returns [pack, name, fit, value, yaw] where fit is
+// 'w' (scale so the footprint width = value), 'h' (height = value) or 's' (uniform scale).
+function kitFor(it) {
+  const [c] = KIT_STYLE[it.style || 'village'] || KIT_STYLE.village;
+  const hash = Math.abs(Math.sin(it.x * 12.9898 + it.z * 78.233)) * 1e4 % 1;
+  switch (it.type) {
+    case 'house': {
+      const k = it.kit || (it.floors >= 2 || (it.w ?? 5) >= 6.5 ? 'home_B' : 'home_A');
+      return [TOWN, `${k.toLowerCase()}_${c}`, 'w', (it.w ?? 5) + 0.4, 0];
+    }
+    case 'hut': return [TOWN, `home_a_${c}`, 'w', 4.6, 0];
+    case 'tower': return [TOWN, `${(it.r ?? 2) > 2.2 ? 'tower_b' : 'tower_a'}_${c}`, 'h', (it.h ?? 9) + (it.r ?? 2) * 1.6, 0];
+    case 'temple': return it.style === 'ruin' ? null : [TOWN, `church_${c}`, 'h', Math.min(13, (it.w ?? 10) * 1.2), 0];
+    case 'windmill': return [TOWN, `windmill_${c}`, 'h', 9.5, 0];
+    case 'well': return [TOWN, `well_${c}`, 'w', 2.8, 0];
+    case 'tent': return Assets.isLoaded(ITEMS) && Assets.template(ITEMS, 's_tent') ? [ITEMS, 's_tent', 'w', 4.2 * (it.s ?? 1), 0] : null;
+    case 'stall': return [TOWN, `market_${c}`, 'w', 5.4, Math.PI];
+    case 'fountain': return [TOWN, `well_${c}`, 'w', 3.8, 0];
+    case 'crates': return [TOWN, ['crate_a_big', 'barrel', 'crate_long_a', 'sack', 'crate_b_big'][Math.floor(hash * 5)], 'h', 1.1, 0];
+    case 'banner': return [TOWN, `flag_${c}`, 'h', 3.6, 0];
+    case 'lamp': return Assets.isLoaded(GRAVE) ? [GRAVE, 'post_lantern', 'h', 3.3, 0] : null;
+    case 'gate': return it.wallType === 'palisade' ? [TOWN, 'fence_wood_straight_gate', 's', 5, Math.PI / 2] : [TOWN, 'wall_straight_gate', 's', 3.1, 0];
+    case 'cave': return it.style === 'ruin' || it.style === 'elven' ? null : [TOWN, `mine_${c}`, 'w', 11, Math.PI];
+    default: return null;
+  }
+}
+// walls & fences are tiled from short kit segments along local x
+const TILE = { wall: [TOWN, 'wall_straight', 6.2], palisade: [TOWN, 'fence_wood_straight', 4.6], fence: [TOWN, 'fence_wood_straight', 2.8] };
+const _km = new THREE.Matrix4(), _kq = new THREE.Quaternion(), _ky = new THREE.Vector3(0, 1, 0);
+function kitPiece(target, b, x, y, z, rot, scale, mul) {
+  _kq.setFromAxisAngle(_ky, rot);
+  _km.compose(new THREE.Vector3(x, y, z), _kq, new THREE.Vector3(scale, scale, scale));
+  appendBaked(target, b, _km, mul);
+}
+
 // ---------------------------------------------------------- builders
 // Return {solid:Builder, glow:Builder, col:[{x,z,w,d}] (local, axis aligned before rotation)}
 function house(st, o = {}) {
@@ -353,6 +394,7 @@ export function buildStructures(list, heightAt) {
   const colliders = [], extras = [];
   const m = new THREE.Matrix4(), q = new THREE.Quaternion(), up = new THREE.Vector3(0, 1, 0);
   for (const it of list) {
+    if (buildKit(it, solid, colliders, extras, heightAt)) continue;
     const fn = BUILDERS[it.type]; if (!fn) continue;
     const st = STYLES[it.style || 'village'];
     const res = fn(st, it);
@@ -371,6 +413,46 @@ export function buildStructures(list, heightAt) {
   sm.castShadow = true; sm.receiveShadow = true;
   const gm = new THREE.Mesh(glow.build(), basic('glowStruct', { toneMapped: false }));
   return { solid: sm, glow: gm, colliders, extras };
+}
+
+// Place a kit model (or tiled kit segments). Returns false when the procedural builder should be used.
+function buildKit(it, solid, colliders, extras, heightAt) {
+  if (!Assets.isLoaded(TOWN) || it.procedural) return false;
+  const mul = (KIT_STYLE[it.style || 'village'] || KIT_STYLE.village)[1];
+  const rot = it.rot || 0, cr = Math.cos(rot), sr = Math.sin(rot);
+  const T = TILE[it.type];
+  if (T) {
+    const b = bake(T[0], T[1]); if (!b) return false;
+    const L = it.l ?? 10;
+    // the segment's long axis may be x or z in the source model
+    const along = b.sx >= b.sz ? b.sx : b.sz, seg = T[2], sc = seg / along, yaw0 = b.sx >= b.sz ? 0 : Math.PI / 2;
+    const n = Math.max(1, Math.round(L / seg)), step = L / n;
+    for (let i = 0; i < n; i++) {
+      const lx = -L / 2 + step * (i + 0.5);
+      const x = it.x + lx * cr, z = it.z - lx * sr;
+      kitPiece(solid, b, x, minHeight(heightAt, x, z, 0.8), z, rot + yaw0, sc * (step / seg), mul);
+    }
+    colliders.push({ x: it.x, z: it.z, hw: L / 2, hd: Math.max(0.5, (b.sx >= b.sz ? b.sz : b.sx) * sc * 0.5), rot });
+    extras.push({ ...it, y: heightAt(it.x, it.z) });
+    return true;
+  }
+  const k = kitFor(it); if (!k) return false;
+  const [pack, name, fit, val, yaw] = k;
+  const b = bake(pack, name); if (!b) return false;
+  const sc = fit === 'w' ? val / Math.max(b.sx, b.sz) : fit === 'h' ? val / b.h : val;
+  const fr = Math.max(b.sx, b.sz) * sc * 0.5;
+  const y = it.y ?? minHeight(heightAt, it.x, it.z, Math.min(4, fr * 0.7));
+  kitPiece(solid, b, it.x, y, it.z, rot + yaw, sc, mul);
+  const big = !['crates', 'lamp', 'banner', 'campfire'].includes(it.type);
+  if (big) {
+    // footprint (KayKit buildings sit on a base that is a little larger than the walls)
+    const swap = Math.abs(Math.sin(yaw)) > 0.5, sxw = (swap ? b.sz : b.sx) * sc * 0.78, szw = (swap ? b.sx : b.sz) * sc * 0.78;
+    if (it.type === 'gate') {
+      for (const sx of [-1, 1]) colliders.push({ x: it.x + sx * sxw * 0.42 * cr, z: it.z - sx * sxw * 0.42 * sr, hw: sxw * 0.14, hd: szw / 2, rot });
+    } else colliders.push({ x: it.x, z: it.z, hw: sxw / 2, hd: szw / 2, rot });
+  } else if (it.type !== 'banner') colliders.push({ x: it.x, z: it.z, hw: 0.45, hd: 0.45, rot });
+  extras.push({ ...it, y, kit: name });
+  return true;
 }
 
 function minHeight(hAt, x, z, r) {

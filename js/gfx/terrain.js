@@ -5,6 +5,51 @@ import { makeNoise } from '../core/noise.js';
 import { clamp, lerp, smoothstep, rng, mixHex, shadeHex } from '../core/util.js';
 import { lambert } from './materials.js';
 
+// Terrain material: vertex colours + procedural detail (mottled ground, cobblestone plazas, dirt roads).
+const terrainMats = {};
+function terrainMaterial(surface) {
+  if (terrainMats[surface]) return terrainMats[surface];
+  const m = new THREE.MeshLambertMaterial({ vertexColors: true });
+  const snow = surface === 'snow' ? 1 : 0, sand = surface === 'sand' ? 1 : 0;
+  m.onBeforeCompile = sh => {
+    sh.vertexShader = 'attribute vec2 surf;\nvarying vec2 vSurf;\nvarying vec3 vWP;\n' + sh.vertexShader.replace('#include <worldpos_vertex>', '#include <worldpos_vertex>\nvSurf = surf; vWP = (modelMatrix * vec4(transformed, 1.0)).xyz;');
+    sh.fragmentShader = 'varying vec2 vSurf;\nvarying vec3 vWP;\n' + `
+      float th(vec2 p){ return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }
+      float tn(vec2 p){ vec2 i = floor(p), f = fract(p); f = f * f * (3.0 - 2.0 * f);
+        return mix(mix(th(i), th(i + vec2(1, 0)), f.x), mix(th(i + vec2(0, 1)), th(i + vec2(1, 1)), f.x), f.y); }
+    ` + sh.fragmentShader.replace('#include <color_fragment>', `#include <color_fragment>
+      {
+        vec2 q = vWP.xz;
+        float n1 = tn(q * 0.11), n2 = tn(q * 0.55 + 17.0), n3 = tn(q * 2.3 + 5.0);
+        // mottled ground: large soft patches + fine grain
+        float mott = 0.86 + 0.18 * n1 + 0.1 * n2 + 0.06 * n3;
+        diffuseColor.rgb *= mix(mott, 0.94 + 0.06 * n2 + 0.05 * n3, ${snow.toFixed(1)});
+        // grass blade streaks
+        diffuseColor.rgb *= 1.0 - 0.07 * smoothstep(0.55, 0.95, tn(vec2(q.x * 6.0, q.y * 1.4) + n2 * 3.0)) * (1.0 - ${(snow + sand).toFixed(1)});
+        // roads: packed dirt with pebbles and wheel ruts
+        float road = smoothstep(0.25, 0.75, vSurf.x);
+        float peb = smoothstep(0.78, 0.92, tn(q * 3.1 + 40.0));
+        diffuseColor.rgb = mix(diffuseColor.rgb, diffuseColor.rgb * (0.9 + 0.16 * n2) * (1.0 - 0.18 * peb) + vec3(0.03) * peb, road);
+        // plazas: offset cobblestones with darker grout
+        float pl = smoothstep(0.2, 0.6, vSurf.y);
+        if (pl > 0.001) {
+          vec2 g = q * vec2(0.85, 1.05);
+          float row = floor(g.y);
+          g.x += mod(row, 2.0) * 0.5 + (tn(vec2(row, 3.0)) - 0.5) * 0.3;
+          vec2 id = floor(g), f = fract(g);
+          float e = min(min(f.x, 1.0 - f.x) * 1.4, min(f.y, 1.0 - f.y));
+          float grout = smoothstep(0.02, 0.12, e);
+          float stone = 0.82 + 0.3 * th(id) + 0.08 * n3;
+          vec3 cob = diffuseColor.rgb * stone * mix(0.5, 1.0, grout);
+          diffuseColor.rgb = mix(diffuseColor.rgb, cob, pl);
+        }
+      }`);
+  };
+  m.customProgramCacheKey = () => 'terrain-' + surface;
+  terrainMats[surface] = m;
+  return m;
+}
+
 function segDist(px, pz, ax, az, bx, bz) {
   const dx = bx - ax, dz = bz - az;
   const l2 = dx * dx + dz * dz;
@@ -133,7 +178,7 @@ export class Terrain {
     return s;
   }
 
-  faceColor(cx, cz, h, ny) {
+  faceColor(cx, cz, h, ny, vertex = false) {
     const T = this.def, P = T.palette, nz = this.noise;
     const n1 = nz.n2(cx * 0.045, cz * 0.045), n2 = nz.n2(cx * 0.13 + 40, cz * 0.13 - 20);
     const slope = 1 - ny;
@@ -152,54 +197,45 @@ export class Terrain {
     if (rf > 0.25) c = mixHex(c, P.road, smoothstep(0.25, 0.7, rf) * 0.95);
     if (pf > 0.2) {
       // cobblestone pattern
-      const k = ((Math.floor(cx / 2.5) + Math.floor(cz / 2.5)) & 1) ? 0.05 : -0.04;
+      const k = vertex ? 0 : ((Math.floor(cx / 2.5) + Math.floor(cz / 2.5)) & 1) ? 0.05 : -0.04;
       c = mixHex(c, shadeHex(P.plaza, k), smoothstep(0.2, 0.6, pf));
     }
     return c;
   }
 
   buildMesh() {
-    const N = this.res, cell = this.cell, half = this.half;
-    const triCount = N * N * 2;
-    const pos = new Float32Array(triCount * 9);
-    const col = new Float32Array(triCount * 9);
+    // Indexed grid with per-vertex colours and smooth normals; fine detail (grass mottling,
+    // cobblestones, dirt) is added in the fragment shader from world position.
+    const N = this.res, cell = this.cell, half = this.half, W = N + 1;
+    const pos = new Float32Array(W * W * 3), col = new Float32Array(W * W * 3), surf = new Float32Array(W * W * 2);
     const r = rng(this.def.seed * 7 + 3);
     const cA = new THREE.Color();
-    let p = 0;
-    const A = new THREE.Vector3(), B = new THREE.Vector3(), C = new THREE.Vector3(), e1 = new THREE.Vector3(), e2 = new THREE.Vector3();
-    const pushTri = (ax, az, bx, bz, cx2, cz2, ah, bh, ch) => {
-      A.set(ax, ah, az); B.set(bx, bh, bz); C.set(cx2, ch, cz2);
-      e1.subVectors(B, A); e2.subVectors(C, A); e1.cross(e2).normalize();
-      const ny = Math.abs(e1.y);
-      const mx = (ax + bx + cx2) / 3, mz = (az + bz + cz2) / 3, mh = (ah + bh + ch) / 3;
-      const hex = this.faceColor(mx, mz, mh, ny);
-      cA.setHex(hex);
-      const k = 0.94 + r() * 0.1;
-      for (const [x, y, z] of [[ax, ah, az], [bx, bh, bz], [cx2, ch, cz2]]) {
-        pos[p] = x; pos[p + 1] = y; pos[p + 2] = z;
-        col[p] = cA.r * k; col[p + 1] = cA.g * k; col[p + 2] = cA.b * k;
-        p += 3;
-      }
-    };
-    for (let j = 0; j < N; j++) {
-      for (let i = 0; i < N; i++) {
-        const x0 = -half + i * cell, z0 = -half + j * cell, x1 = x0 + cell, z1 = z0 + cell;
-        const h00 = this.vh(i, j), h10 = this.vh(i + 1, j), h01 = this.vh(i, j + 1), h11 = this.vh(i + 1, j + 1);
-        if (!((i + j) & 1)) {
-          pushTri(x0, z0, x0, z1, x1, z1, h00, h01, h11);
-          pushTri(x0, z0, x1, z1, x1, z0, h00, h11, h10);
-        } else {
-          pushTri(x0, z0, x0, z1, x1, z0, h00, h01, h10);
-          pushTri(x1, z0, x0, z1, x1, z1, h10, h01, h11);
-        }
-      }
+    for (let j = 0; j <= N; j++) for (let i = 0; i <= N; i++) {
+      const k = j * W + i, x = -half + i * cell, z = -half + j * cell, h = this.vh(i, j);
+      pos[k * 3] = x; pos[k * 3 + 1] = h; pos[k * 3 + 2] = z;
+      // slope from neighbours
+      const hx = this.vh(Math.min(N, i + 1), j) - this.vh(Math.max(0, i - 1), j), hz = this.vh(i, Math.min(N, j + 1)) - this.vh(i, Math.max(0, j - 1));
+      const ny = 1 / Math.sqrt(1 + (hx * hx + hz * hz) / (4 * cell * cell));
+      cA.setHex(this.faceColor(x, z, h, ny, true));
+      const kk = 0.97 + r() * 0.06;
+      col[k * 3] = cA.r * kk; col[k * 3 + 1] = cA.g * kk; col[k * 3 + 2] = cA.b * kk;
+      surf[k * 2] = this.road[this.idx(i, j)]; surf[k * 2 + 1] = this.plaza[this.idx(i, j)];
+    }
+    const idx = new Uint32Array(N * N * 6); let p = 0;
+    for (let j = 0; j < N; j++) for (let i = 0; i < N; i++) {
+      const a = j * W + i, b = (j + 1) * W + i, c = (j + 1) * W + i + 1, d = j * W + i + 1;
+      // same diagonal pattern as heightAt()
+      if (!((i + j) & 1)) { idx[p++] = a; idx[p++] = b; idx[p++] = c; idx[p++] = a; idx[p++] = c; idx[p++] = d; }
+      else { idx[p++] = a; idx[p++] = b; idx[p++] = d; idx[p++] = d; idx[p++] = b; idx[p++] = c; }
     }
     const g = new THREE.BufferGeometry();
     g.setAttribute('position', new THREE.BufferAttribute(pos, 3));
     g.setAttribute('color', new THREE.BufferAttribute(col, 3));
+    g.setAttribute('surf', new THREE.BufferAttribute(surf, 2));
+    g.setIndex(new THREE.BufferAttribute(idx, 1));
     g.computeVertexNormals();
     g.computeBoundingSphere();
-    this.mesh = new THREE.Mesh(g, lambert('terrain'));
+    this.mesh = new THREE.Mesh(g, terrainMaterial(this.def.surface || 'grass'));
     this.mesh.receiveShadow = true;
     this.mesh.name = 'terrain';
   }

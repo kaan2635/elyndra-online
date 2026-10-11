@@ -18,7 +18,7 @@ export function h(tag, attrs, ...kids) {
     const v = attrs[k];
     if (v == null || v === false) continue;
     if (k === 'class') el.className += (el.className ? ' ' : '') + v;
-    else if (k === 'style' && typeof v === 'object') Object.assign(el.style, v);
+    else if (k === 'style' && typeof v === 'object') { for (const sk in v) { if (sk.startsWith('--')) el.style.setProperty(sk, v[sk]); else el.style[sk] = v[sk]; } }
     else if (k === 'text') el.textContent = v;
     else if (k === 'html') el.innerHTML = v;
     else if (k.startsWith('on') && typeof v === 'function') {
@@ -26,7 +26,7 @@ export function h(tag, attrs, ...kids) {
       if (ev === 'click') el.addEventListener('click', e => { Audio.sfx('ui_click', { vol: 0.5 }); v(e); });
       else el.addEventListener(ev, v);
     }
-    else if (k === 'data') for (const d in v) el.dataset[d] = v[d];
+    else if (k === 'data' || k === 'dataset') for (const d in v) el.dataset[d] = v[d];
     else el.setAttribute(k, v);
   }
   for (const k of kids.flat(5)) { if (k == null || k === false) continue; el.append(k instanceof Node ? k : document.createTextNode(String(k))); }
