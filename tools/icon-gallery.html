@@ -1,0 +1,119 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Icon Gallery</title>
+<style>
+  :root { color-scheme: dark; }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: #0d0f14; color: #cfd6e2; font: 12px/1.35 system-ui, "Segoe UI", Roboto, sans-serif; }
+  header { position: sticky; top: 0; z-index: 2; display: flex; flex-wrap: wrap; gap: 10px 16px; align-items: center;
+    padding: 10px 16px; background: #141821ee; border-bottom: 1px solid #262c38; backdrop-filter: blur(6px); }
+  header h1 { margin: 0; font-size: 15px; color: #f1e3c0; letter-spacing: .3px; }
+  header label { display: flex; gap: 6px; align-items: center; color: #9aa6b8; }
+  select, input[type=text] { background: #1c212c; color: #dfe6f0; border: 1px solid #333b4a; border-radius: 6px; padding: 4px 6px; font: inherit; }
+  #stats { margin-left: auto; color: #8fd18f; font-variant-numeric: tabular-nums; }
+  main { padding: 16px; display: grid; gap: 10px; grid-template-columns: repeat(auto-fill, minmax(var(--cw, 236px), 1fr)); }
+  .card { background: #151922; border: 1px solid #222836; border-radius: 10px; padding: 8px 8px 6px; }
+  .row { display: flex; gap: 6px; align-items: flex-end; flex-wrap: wrap; }
+  .name { margin-top: 5px; color: #e8dcc0; font-weight: 600; font-size: 12px; }
+  .cat { color: #6f7a8c; font-weight: 400; }
+  h2 { grid-column: 1 / -1; margin: 14px 0 0; font-size: 13px; color: #d9b45a; text-transform: uppercase; letter-spacing: 1px; }
+  .raw { background: repeating-conic-gradient(#1b1f29 0 25%, #222735 0 50%) 0 0 / 12px 12px; border-radius: 6px; }
+  canvas, img { display: block; }
+</style>
+</head>
+<body>
+<header>
+  <h1>icons.js gallery</h1>
+  <label>Mode
+    <select id="mode">
+      <option value="mixed">mixed (64 + 36, themes, rarity)</option>
+      <option value="big">big (128px)</option>
+      <option value="huge">huge (256px)</option>
+      <option value="small">36px only</option>
+      <option value="themes">all themes 64px</option>
+    </select>
+  </label>
+  <label>Filter <input id="filter" type="text" placeholder="sword, potion..." size="16"></label>
+  <span id="stats"></span>
+</header>
+<main id="grid"></main>
+<script type="module">
+import { GLYPH_NAMES, makeIcon, iconURL, drawGlyph, ICON_THEMES } from '../js/gfx/icons.js';
+
+const CATS = [
+  ['Weapons & armour', 'sword greatsword axe mace hammer dagger staff wand bow crossbow shield orb tome helmet shoulders chest gloves boots pants belt cape ring necklace trinket'],
+  ['Consumables & materials', 'potion_red potion_blue potion_green potion_purple elixir food bread fish ore ingot gem crystal herb flower mushroom log plank leather cloth bone fang feather essence dust scroll map key chest_box bag coin coins token'],
+  ['Skills & magic', 'flame fireball meteor snowflake ice_shard frost_nova lightning arcane_star arcane_missiles blink holy_cross sun halo heal_hand heart renew shield_glow barrier skull death_coil poison_drop dagger_throw smoke eye stealth arrow multi_arrows rain_arrows trap paw wolf raven summon bone_spear ghost chains fist whirlwind charge taunt war_cry slash cleave bleed stun sprint net mark tornado earthquake vines moon star blood_drop soul drain explosion rage'],
+  ['UI', 'crown trophy banner sword_cross map_marker compass gear quest_exclaim quest_question chat users guild hammer_anvil pickaxe axe_tool fishing_rod sickle horse tower house scales mail lock plus close check refresh info bell gift calendar hourglass dice backpack person talent book_open portal campfire anvil cauldron cooking_pot ruby_ring sparkles arrow_up skull_crown dungeon'],
+];
+const THEMES = ['fire', 'frost', 'arcane', 'holy', 'nature', 'shadow', 'poison', 'physical', 'blood', 'lightning', 'gold', 'ui'];
+const RAR = Object.keys(ICON_THEMES.rarity);
+const params = new URLSearchParams(location.search);
+const modeSel = document.getElementById('mode'), filterIn = document.getElementById('filter');
+modeSel.value = params.get('mode') || 'mixed';
+filterIn.value = params.get('filter') || '';
+
+function render() {
+  const grid = document.getElementById('grid');
+  grid.textContent = '';
+  const mode = modeSel.value;
+  const filt = filterIn.value.split(/[\s,]+/).filter(Boolean);
+  grid.style.setProperty('--cw', mode === 'huge' ? '560px' : mode === 'big' ? '300px' : mode === 'themes' ? '880px' : mode === 'small' ? '120px' : '236px');
+  const t0 = performance.now();
+  let count = 0;
+  const known = new Set(CATS.flatMap(([, s]) => s.split(' ')));
+  const extra = GLYPH_NAMES.filter((n) => !known.has(n));
+  const cats = extra.length ? [...CATS, ['Other', extra.join(' ')]] : CATS;
+  let idx = 0;
+  for (const [title, list] of cats) {
+    const names = list.split(' ').filter((n) => !filt.length || filt.some((f) => n.includes(f)));
+    if (!names.length) continue;
+    const h = document.createElement('h2'); h.textContent = title + ' (' + names.length + ')'; grid.append(h);
+    for (const name of names) {
+      const i = idx++;
+      const card = document.createElement('div'); card.className = 'card';
+      const row = document.createElement('div'); row.className = 'row';
+      const th = THEMES[i % THEMES.length], rar = RAR[i % RAR.length];
+      const add = (el, tip) => { el.title = tip; row.append(el); count++; };
+      if (mode === 'mixed') {
+        add(makeIcon(name, { size: 64 }), 'default 64');
+        add(makeIcon(name, { size: 64, ...ICON_THEMES[th], frame: ICON_THEMES.rarity[rar] }), th + ' / ' + rar);
+        add(makeIcon(name, { size: 36 }), 'default 36');
+        add(makeIcon(name, { size: 36, ...ICON_THEMES[th], frame: ICON_THEMES.rarity[rar] }), th + ' / ' + rar + ' 36');
+        const img = new Image(); img.src = iconURL(name, { size: 36, frame: ICON_THEMES.rarity.epic, badge: (i % 20) + 1, dim: i % 3 === 0 });
+        img.width = img.height = 36; add(img, 'iconURL + badge' + (i % 3 === 0 ? ' + dim' : ''));
+      } else if (mode === 'big' || mode === 'huge') {
+        const s = mode === 'big' ? 128 : 256;
+        add(makeIcon(name, { size: s }), 'default ' + s);
+        if (mode === 'huge') {
+          const c = document.createElement('canvas'); const d = Math.min(2, devicePixelRatio || 1);
+          c.width = c.height = s * d; c.style.width = c.style.height = s + 'px'; c.className = 'raw';
+          const x = c.getContext('2d'); x.scale(d, d); drawGlyph(x, name, 8, 8, s - 16); add(c, 'drawGlyph raw');
+        } else add(makeIcon(name, { size: s, ...ICON_THEMES[th], frame: ICON_THEMES.rarity[rar] }), th);
+      } else if (mode === 'small') {
+        add(makeIcon(name, { size: 36 }), '36');
+        add(makeIcon(name, { size: 36, frame: ICON_THEMES.rarity.legendary, ...ICON_THEMES[th] }), th);
+      } else {
+        for (const t of THEMES) add(makeIcon(name, { size: 64, ...ICON_THEMES[t] }), t);
+      }
+      const label = document.createElement('div'); label.className = 'name'; label.textContent = name;
+      card.append(row, label); grid.append(card);
+    }
+  }
+  const ms = performance.now() - t0;
+  document.getElementById('stats').textContent = `${GLYPH_NAMES.length} glyphs, ${count} icons in ${ms.toFixed(0)} ms (${(ms / Math.max(1, count)).toFixed(2)} ms/icon)`;
+}
+modeSel.onchange = render;
+filterIn.oninput = render;
+render();
+// cold-start benchmark: 200 fresh 64px icons (unique keys bypass the cache)
+const tb = performance.now();
+for (let i = 0; i < 200; i++) makeIcon(GLYPH_NAMES[i % GLYPH_NAMES.length], { size: 64, round: 9 + (i % 7) * 0.01 });
+console.log('bench 200 icons ms', (performance.now() - tb).toFixed(1));
+window.__bench = performance.now() - tb;
+</script>
+</body>
+</html>

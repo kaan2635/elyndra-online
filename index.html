@@ -1,0 +1,38 @@
+<!doctype html>
+<html lang="tr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<meta name="theme-color" content="#0b0a10">
+<meta name="description" content="Elyndra Online — tarayıcıda ve telefonda oynanan ücretsiz 3D fantastik MMORPG. Free 3D fantasy MMORPG for browser and mobile.">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<title>Elyndra Online — Kadim Diyarlar</title>
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="assets/icon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="assets/icon-192.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@500;700;900&family=Nunito+Sans:wght@400;600;700;800;900&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="css/style.css">
+<script type="importmap">{ "imports": { "three": "./lib/three.module.min.js" } }</script>
+</head>
+<body>
+<canvas id="gl"></canvas>
+<canvas id="overlay"></canvas>
+<div id="ui"></div>
+<div id="boot">
+  <div class="logo">ELYNDRA<small>KADİM DİYARLAR · ONLINE</small></div>
+  <div class="loadbar"><i></i></div>
+  <div class="loadtext">Yükleniyor…</div>
+  <noscript style="color:#fff">Bu oyun JavaScript gerektirir. / This game requires JavaScript.</noscript>
+</div>
+<script type="module" src="js/main.js"></script>
+<script>
+  if ('serviceWorker' in navigator && location.protocol === 'https:') {
+    window.addEventListener('load', () => navigator.serviceWorker.register('sw.js').catch(() => {}));
+  }
+</script>
+</body>
+</html>

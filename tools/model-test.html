@@ -1,0 +1,59 @@
+<!doctype html>
+<html><head><meta charset="utf-8"><title>Model test</title>
+<style>body{margin:0;background:#222;overflow:hidden}canvas{display:block}#info{position:fixed;top:8px;left:8px;color:#fff;font:13px sans-serif}</style>
+<script type="importmap">{"imports":{"three":"../lib/three.module.min.js"}}</script>
+</head><body><div id="info"></div>
+<script type="module">
+import * as THREE from 'three';
+import { buildHumanoid, buildQuad, buildSpider, buildBlob, buildFloater, buildWorm, buildDragon, SKIN, HAIR } from '../js/gfx/models.js';
+import { createAnimState, updateAnim, playAct } from '../js/gfx/anim.js';
+const r = new THREE.WebGLRenderer({ antialias: true }); r.setSize(innerWidth, innerHeight); r.setPixelRatio(devicePixelRatio); document.body.appendChild(r.domElement);
+r.outputColorSpace = THREE.SRGBColorSpace; r.toneMapping = THREE.ACESFilmicToneMapping; r.shadowMap.enabled = true;
+const sc = new THREE.Scene(); sc.background = new THREE.Color(0x8ab0d0);
+const cam = new THREE.PerspectiveCamera(45, innerWidth / innerHeight, 0.1, 200); cam.position.set(0, 4, 14); cam.lookAt(0, 1, 0);
+sc.add(new THREE.HemisphereLight(0xbfd8ff, 0x5a4a32, 1.2));
+const sun = new THREE.DirectionalLight(0xfff2d8, 2.2); sun.position.set(5, 10, 6); sun.castShadow = true; sc.add(sun);
+const ground = new THREE.Mesh(new THREE.PlaneGeometry(60, 60), new THREE.MeshLambertMaterial({ color: 0x6aa84f })); ground.rotation.x = -Math.PI / 2; ground.receiveShadow = true; sc.add(ground);
+const list = [];
+const add = (m, x, z, act) => { m.mesh.position.set(x, 0, z); sc.add(m.mesh); const a = createAnimState(); list.push({ m, a, act }); };
+add(buildHumanoid({ race: 'human', skin: SKIN[1], hair: 0, hairColor: HAIR[2], gear: { chest: { m: 'plate', c: 0x9aa0b0, c2: 0xd8b04a }, shoulders: { m: 'plate', c: 0x9aa0b0 }, head: { m: 'helm', c: 0x9aa0b0 }, legs: { c: 0x5a5a68, m: 'plate' }, hands: { c: 0x7a7a88 }, feet: { c: 0x4a4a58 }, cape: { c: 0xa82a2a }, main: { m: 'sword' }, off: { m: 'shield', c: 0x3a5aa8, c2: 0xd8b04a } } }), -6, 0, 'slash');
+add(buildHumanoid({ race: 'elf', body: 1, skin: SKIN[0], hair: 1, hairColor: HAIR[4], gear: { chest: { m: 'robe', c: 0x3a4ab8, c2: 0xd8b04a }, head: { m: 'hat', c: 0x2a3a98 }, main: { m: 'staff', glow: 0x6ad0ff }, cape: { c: 0x2a2a68 } } }), -3.5, 0, 'cast');
+add(buildHumanoid({ race: 'dwarf', skin: SKIN[2], hair: 0, beard: 3, hairColor: HAIR[5], gear: { chest: { m: 'mail', c: 0x7a6a5a }, main: { m: 'axe' }, shoulders: { m: 'leather', c: 0x6a4a2a } } }), -1, 0, 'overhead');
+add(buildHumanoid({ race: 'orc', skin: 0x7aa05a, hair: 3, hairColor: HAIR[0], gear: { chest: { m: 'leather', c: 0x6a4a2a }, main: { m: 'bow', c: 0x8a5a2a } } }), 1.5, 0, 'bow');
+add(buildHumanoid({ race: 'human', body: 1, skin: SKIN[3], hair: 2, hairColor: HAIR[0], gear: { chest: { m: 'leather', c: 0x2a2a30 }, head: { m: 'hood', c: 0x2a2a30 }, main: { m: 'dagger' }, off: { m: 'dagger' } } }), 4, 0, 'dual');
+add(buildHumanoid({ race: 'goblin', skin: 0x6ab04a, feat: { angry: true }, gear: { chest: { m: 'leather', c: 0x6a4a2a }, main: { m: 'club', c2: 0x6a4a2a } } }), 6.5, 0, 'overhead');
+add(buildHumanoid({ race: 'skeleton', skin: 0xe8e0c8, feat: { skull: true, bones: true, ribs: true, glowEyes: 0x6af0ff }, shirt: 0xe8e0c8, pants: 0xe8e0c8, gear: { main: { m: 'sword', c: 0x8a7a6a } } }), 8.5, 0, 'slash');
+add(buildQuad({ kind: 'wolf', c: 0x7a7a80 }), -6, 4, 'bite');
+add(buildQuad({ kind: 'boar', c: 0x6a4a3a }), -3.5, 4, 'bite');
+add(buildQuad({ kind: 'bear', c: 0x5a3a2a }), -0.5, 4, 'bite');
+add(buildQuad({ kind: 'horse', c: 0x8a5a3a, c2: 0x2a1a10, feat: { saddle: 0x5a3a22 } }), 3, 4, null);
+add(buildSpider({ c: 0x2a2a2a }), 6, 4, 'bite');
+add(buildSpider({ kind: 'scorpion', c: 0x8a6a3a, c2: 0x3a2a1a }), 8.5, 4, 'thrust');
+add(buildBlob({ c: 0x5ad04a }), -6, -4, 'bite');
+add(buildFloater({ kind: 'wisp', c: 0x8ad8ff }), -4, -4, null);
+add(buildFloater({ kind: 'wraith', c: 0x4a4a68 }), -2, -4, 'slash');
+add(buildFloater({ kind: 'elemental', c: 0xc84a1a, c2: 0x5a1a0a, core: 0xffd040 }), 0, -4, 'slash');
+add(buildFloater({ kind: 'eye', c: 0x8a3a8a, c2: 0x4a1a4a }), 2, -4, null);
+add(buildFloater({ kind: 'bat', c: 0x3a2a3a, c2: 0x2a1a2a }), 4, -4, null);
+add(buildWorm({ c: 0xc8a868 }), 6, -5, 'bite');
+add(buildDragon({ c: 0xa82a1a, scale: 0.6 }), 0, -10, 'breath');
+let last = performance.now(), T = 0, yaw = 0;
+addEventListener('pointermove', e => { if (e.buttons) yaw += e.movementX * 0.01; });
+const rs = () => { r.setSize(innerWidth, innerHeight); cam.aspect = innerWidth / innerHeight; cam.updateProjectionMatrix(); };
+addEventListener('resize', rs); setInterval(() => { if (r.domElement.width === 0 && innerWidth) rs(); }, 300);
+function loop() {
+  const now = performance.now(), dt = Math.min(0.05, (now - last) / 1000); last = now; T += dt;
+  const walk = (Math.floor(T / 4) % 2) === 0;
+  for (const it of list) {
+    it.a.move = walk ? 1 : 0; it.a.phase += dt * 7;
+    if (!walk && !it.a.act && it.act && Math.random() < 0.02) playAct(it.a, it.act, 0.7);
+    updateAnim(it.m, it.a, dt);
+  }
+  const hp = new URLSearchParams(location.hash.slice(1));
+  const fx = +(hp.get('x') ?? 1), fz = +(hp.get('z') ?? -1), D = +(hp.get('d') ?? 16), Y = +(hp.get('y') ?? 1); yaw = +(hp.get('yaw') ?? yaw);
+  cam.position.set(fx + Math.sin(yaw) * D, Y + D * 0.25, fz + Math.cos(yaw) * D); cam.lookAt(fx, Y, fz);
+  document.getElementById('info').textContent = (walk ? 'walking' : 'actions') + ' | drag to orbit | calls ' + r.info.render.calls;
+  r.render(sc, cam); requestAnimationFrame(loop);
+}
+loop();
+</script></body></html>

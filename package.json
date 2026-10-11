@@ -1,0 +1,6 @@
+{
+  "name": "elyndra-online",
+  "private": true,
+  "type": "module",
+  "scripts": { "dev": "node tools/devserver.mjs 8080" }
+}

@@ -1,0 +1,161 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Audio Audition</title>
+<style>
+  :root { --bg: #14161c; --panel: #1d2029; --line: #2c3040; --text: #e6e8ef; --dim: #9aa0b4; --acc: #e0b85a; --on: #4fb37a; }
+  * { box-sizing: border-box; }
+  body { margin: 0; padding: 16px; background: var(--bg); color: var(--text); font: 14px/1.4 system-ui, -apple-system, Segoe UI, Roboto, sans-serif; }
+  h1 { font-size: 20px; margin: 0 0 4px; }
+  h2 { font-size: 13px; text-transform: uppercase; letter-spacing: .08em; color: var(--dim); margin: 0 0 8px; }
+  .note { color: var(--dim); font-size: 12px; margin: 0 0 12px; }
+  section { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 12px; margin-bottom: 12px; }
+  .grid { display: flex; flex-wrap: wrap; gap: 6px; }
+  .group { margin-bottom: 10px; }
+  .group b { display: block; font-size: 12px; color: var(--acc); margin-bottom: 4px; font-weight: 600; }
+  button { background: #262a36; color: var(--text); border: 1px solid var(--line); border-radius: 6px; padding: 6px 10px; font: inherit; font-size: 13px; cursor: pointer; }
+  button:hover { border-color: var(--acc); }
+  button.active { background: var(--on); border-color: var(--on); color: #08130c; }
+  .row { display: flex; flex-wrap: wrap; gap: 14px; align-items: center; }
+  label { display: flex; align-items: center; gap: 6px; color: var(--dim); font-size: 13px; }
+  input[type=range] { width: 120px; }
+  #status { display: inline-block; padding: 2px 8px; border-radius: 99px; font-size: 12px; background: #5a2b2b; }
+  #status.ok { background: var(--on); color: #08130c; }
+  #log { font-family: ui-monospace, Consolas, monospace; font-size: 12px; color: var(--dim); }
+</style>
+</head>
+<body>
+<h1>Audio audition <span id="status">locked: tap anywhere</span></h1>
+<p class="note">Serve the project over http (for example <code>npx serve .</code> or <code>python -m http.server</code>) and open <code>/tools/audio-test.html</code>. ES modules do not load from file://.</p>
+
+<section>
+  <h2>Mix</h2>
+  <div class="row" id="mix"></div>
+</section>
+
+<section>
+  <h2>SFX</h2>
+  <div class="row" style="margin-bottom:10px">
+    <label>pitch <input type="range" id="pitch" min="0.5" max="2" step="0.01" value="1"><span id="pitchV">1.00</span></label>
+    <label>pan <input type="range" id="pan" min="-1" max="1" step="0.01" value="0"><span id="panV">0.00</span></label>
+    <label>vol <input type="range" id="vol" min="0" max="1" step="0.01" value="1"><span id="volV">1.00</span></label>
+    <label><input type="checkbox" id="spam"> burst x10 (throttle test)</label>
+  </div>
+  <div id="sfx"></div>
+</section>
+
+<section>
+  <h2>Music</h2>
+  <div class="grid" id="music"></div>
+  <div class="row" style="margin-top:10px"><button id="combat">Combat: off</button></div>
+</section>
+
+<section>
+  <h2>Ambience</h2>
+  <div class="grid" id="ambient"></div>
+</section>
+
+<section>
+  <h2>Footsteps</h2>
+  <div class="grid" id="steps"></div>
+</section>
+
+<div id="log">ready</div>
+
+<script type="module">
+import { Audio } from '../js/audio.js';
+
+const SFX_GROUPS = {
+  UI: ['ui_click', 'ui_hover', 'ui_open', 'ui_close', 'ui_error', 'ui_tab', 'chat', 'whisper', 'warn'],
+  Items: ['equip', 'unequip', 'coin', 'loot', 'loot_rare', 'loot_legendary', 'potion', 'eat', 'buy', 'sell'],
+  Progress: ['levelup', 'quest_accept', 'quest_complete', 'achievement', 'enhance_success', 'enhance_fail', 'victory', 'defeat', 'gong'],
+  Combat: ['swing', 'swing_heavy', 'hit', 'hit_metal', 'crit', 'bow_shot', 'arrow_hit', 'dash', 'dodge', 'stun', 'death_monster', 'death_player'],
+  Magic: ['fire_cast', 'fireball', 'explosion', 'frost_cast', 'ice_shatter', 'lightning', 'arcane', 'holy_cast', 'heal', 'shield_up', 'shadow_cast', 'poison', 'stealth', 'buff', 'debuff', 'summon', 'portal', 'teleport'],
+  Creatures: ['growl', 'slime', 'howl', 'screech', 'roar', 'bone'],
+  Gathering: ['mining', 'chop', 'herb', 'fish_cast', 'fish_splash', 'fish_bite', 'fish_reel'],
+  Crafting: ['craft_hammer', 'craft_brew', 'craft_cook'],
+  World: ['mount', 'door'],
+};
+const THEMES = ['none', 'title', 'town', 'meadow', 'forest', 'desert', 'snow', 'volcano', 'shadow', 'dungeon', 'boss', 'arena', 'home'];
+const BEDS = ['none', 'wind', 'forest', 'meadow', 'desert', 'snow', 'lava', 'shadow', 'cave', 'town', 'rain'];
+const SURFACES = ['grass', 'stone', 'sand', 'snow', 'wood', 'water'];
+
+const $ = (id) => document.getElementById(id);
+const log = (t) => { $('log').textContent = t; };
+const btn = (label, onClick) => { const b = document.createElement('button'); b.textContent = label; b.onclick = onClick; return b; };
+
+Audio.init();
+
+// Mix sliders
+const vols = { master: 0.8, music: 0.6, sfx: 0.8, ambient: 0.6 };
+for (const k of Object.keys(vols)) {
+  const l = document.createElement('label');
+  l.innerHTML = `${k} <input type="range" min="0" max="1" step="0.01" value="${vols[k]}">`;
+  l.querySelector('input').oninput = (e) => Audio.setVolumes({ [k]: +e.target.value });
+  $('mix').appendChild(l);
+}
+Audio.setVolumes(vols);
+
+// SFX
+for (const id of ['pitch', 'pan', 'vol']) $(id).oninput = () => { $(id + 'V').textContent = (+$(id).value).toFixed(2); };
+for (const [group, names] of Object.entries(SFX_GROUPS)) {
+  const g = document.createElement('div'); g.className = 'group';
+  g.innerHTML = `<b>${group}</b>`;
+  const grid = document.createElement('div'); grid.className = 'grid';
+  for (const n of names) {
+    const b = btn(n, () => {
+      const opts = { pitch: +$('pitch').value, pan: +$('pan').value, vol: +$('vol').value };
+      const reps = $('spam').checked ? 10 : 1;
+      for (let i = 0; i < reps; i++) Audio.sfx(n, opts);
+      log(`sfx ${n} ${JSON.stringify(opts)}${reps > 1 ? ' x10' : ''}`);
+    });
+    if (n === 'ui_hover') b.onmouseenter = () => Audio.sfx('ui_hover');
+    grid.appendChild(b);
+  }
+  g.appendChild(grid);
+  $('sfx').appendChild(g);
+}
+
+// Music / combat / ambience
+const radio = (container, items, fn) => {
+  const buttons = items.map((it) => {
+    const b = btn(it, () => { buttons.forEach((x) => x.classList.toggle('active', x === b)); fn(it); log(`${container}: ${it}`); });
+    $(container).appendChild(b);
+    return b;
+  });
+};
+radio('music', THEMES, (t) => Audio.music(t));
+radio('ambient', BEDS, (t) => Audio.ambient(t));
+let combat = false;
+$('combat').onclick = () => {
+  combat = !combat;
+  Audio.setCombat(combat);
+  $('combat').textContent = `Combat: ${combat ? 'on' : 'off'}`;
+  $('combat').classList.toggle('active', combat);
+};
+
+// Footsteps (click = one step, second button = walk loop)
+let walkTimer = 0, walkBtn = null;
+for (const s of SURFACES) {
+  $('steps').appendChild(btn(s, () => Audio.footstep(s)));
+  const w = btn(`walk ${s}`, () => {
+    clearInterval(walkTimer);
+    if (walkBtn === w) { w.classList.remove('active'); walkBtn = null; return; }
+    if (walkBtn) walkBtn.classList.remove('active');
+    walkBtn = w; w.classList.add('active');
+    walkTimer = setInterval(() => Audio.footstep(s), 380);
+  });
+  $('steps').appendChild(w);
+}
+
+// Unlock indicator
+setInterval(() => {
+  const ok = Audio.unlocked;
+  $('status').textContent = ok ? 'unlocked' : 'locked: tap anywhere';
+  $('status').classList.toggle('ok', ok);
+}, 250);
+</script>
+</body>
+</html>
