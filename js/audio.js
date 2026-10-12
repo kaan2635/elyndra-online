@@ -333,6 +333,16 @@ class Voice {
     tail.connect(G.sfx.in); tail.connect(this.send); this.send.connect(G.sfx.rev);
   }
   wet(v) { this.send.gain.value = v; }
+  // Play a recorded buffer through this voice (pan / reverb / cleanup shared with the synth).
+  sample(buf, vol, rate) {
+    const s = ctx.createBufferSource();
+    s.buffer = buf; s.playbackRate.value = rate;
+    const g = gn(vol);
+    s.connect(g); g.connect(this.out); this.nodes.push(s, g);
+    s.start(this.t0);
+    const e = this.t0 + buf.duration / rate;
+    if (e > this.end) this.end = e;
+  }
   // Schedule one synth voice at relative time t (seconds) for d seconds.
   s(t, d, o) {
     const p = this.p, ts = this.ts;
@@ -1362,6 +1372,19 @@ class Bed {
     });
     this.dying = false; this.dieAt = Infinity;
     BEDS[type](this);
+    const rec = SM && SM.amb && SM.amb[type];
+    if (rec) this.recorded(rec);
+  }
+  // recorded seamless loop layered over the synthesized bed
+  recorded(a) {
+    loadBuf('amb/' + a.f + '.mp3').then((b) => {
+      if (!isBuf(b) || this.dying || this.gone) return;
+      const s = ctx.createBufferSource();
+      s.buffer = b; s.loop = true; s.loopStart = 0.06; s.loopEnd = b.duration - 0.06;
+      const g = gn(0); s.connect(g); g.connect(this.out);
+      this.nodes.push(g); this.srcs.push(s);
+      s.start(); g.gain.linearRampToValueAtTime(a.v, ctx.currentTime + 2.5);
+    });
   }
   pan() { return pick(this.pans); }
   // Looping noise layer. o: { vol, hp, bp, lp, q, pan, rate, lfoG: [rate, depth], lfoF: [rate, depth] }
@@ -1411,6 +1434,7 @@ class Bed {
   }
   fadeOut() { this.fade(0, 2.5); this.dying = true; this.dieAt = ctx.currentTime + 2.7; }
   destroy() {
+    this.gone = true;
     for (const s of this.srcs) { try { s.stop(); } catch (e) { /* not started */ } off(s); }
     for (const n of this.nodes) off(n);
   }
@@ -1590,6 +1614,97 @@ const BEDS = {
 /* 12. Scheduler, crossfades, lifecycle & unlock                              */
 /* -------------------------------------------------------------------------- */
 
+/* Recorded layer (assets/audio, built by tools/build-audio.mjs). Everything above
+ * keeps working without it: a sound plays its recording once decoded and falls back
+ * to the synth recipe until then (or when the file is missing). */
+let SM = null;                 // manifest { sfx: {name: {f: [files], v, layer}}, music: {theme: [files]}, amb: {type: {f, v}} }
+let SBASE = 'assets/audio/';
+let deckBlocked = false;       // media elements refused to play (autoplay policy) → generative music
+const SBUF = new Map();        // path -> AudioBuffer | Promise | null
+
+function decodeBuf(ab) {
+  return new Promise((res, rej) => {
+    const p = ctx.decodeAudioData(ab, res, rej);
+    if (p && p.then) p.then(res, rej);
+  });
+}
+function loadBuf(path) {
+  const have = SBUF.get(path);
+  if (have !== undefined) return Promise.resolve(have);
+  const p = fetch(SBASE + path)
+    .then((r) => { if (!r.ok) throw new Error('http ' + r.status); return r.arrayBuffer(); })
+    .then(decodeBuf)
+    .then((b) => { SBUF.set(path, b); return b; }, () => { SBUF.set(path, null); return null; });
+  SBUF.set(path, p);
+  return p;
+}
+const isBuf = (b) => !!(b && typeof b.getChannelData === 'function');
+function sampleFor(name) {
+  const ent = SM && SM.sfx[name];
+  if (!ent) return null;
+  if (!ent.req) { ent.req = 1; for (const f of ent.f) loadBuf('sfx/' + f + '.mp3'); }
+  const ready = [];
+  for (const f of ent.f) { const b = SBUF.get('sfx/' + f + '.mp3'); if (isBuf(b)) ready.push(b); }
+  return ready.length ? { ent, buf: pick(ready) } : null;
+}
+// decode the sounds heard in the first seconds of play right after unlocking
+const PRELOAD = ['ui_click', 'ui_open', 'ui_close', 'ui_tab', 'swing', 'hit', 'step_grass', 'step_stone', 'coin', 'loot', 'potion', 'bow_shot', 'arrow_hit', 'fireball', 'heal'];
+function preloadSamples() { if (SM && ctx) for (const n of PRELOAD) sampleFor(n); }
+
+// Streams a playlist of recorded tracks for a theme; same interface as Song.
+class Deck {
+  constructor(name) {
+    this.name = name;
+    this.list = SM.music[name].slice().sort(() => Math.random() - 0.5);
+    this.i = 0;
+    this.out = gn(0); this.out.connect(G.music.in);
+    this.wet = gn(0.1); this.out.connect(this.wet); this.wet.connect(G.music.rev);
+    this.cur = null; this.old = []; this.fails = 0;
+    this.dying = false; this.dieAt = Infinity;
+    this.play();
+  }
+  play() {
+    const file = this.list[this.i++ % this.list.length];
+    const el = new window.Audio();
+    el.preload = 'auto'; el.src = SBASE + 'music/' + file + '.mp3';
+    let src;
+    try { src = ctx.createMediaElementSource(el); } catch (e) { this.fails = 9; return; }
+    const g = gn(0); src.connect(g); g.connect(this.out);
+    const now = ctx.currentTime, x = this.cur ? 3 : 0.4;
+    g.gain.setValueAtTime(0, now); g.gain.linearRampToValueAtTime(1, now + x);
+    if (this.cur) this.retire(this.cur, 3);
+    const t = { el, g, src, xf: false };
+    this.cur = t;
+    const pr = el.play();
+    if (pr && pr.then) pr.then(null, (e) => { if (e && e.name === 'NotAllowedError') { deckBlocked = true; if (curSong === this) { curSong = null; applyWanted(); } } });
+    el.addEventListener('ended', () => { if (this.cur === t && !this.dying) this.play(); });
+    el.addEventListener('error', () => { if (this.cur === t && !this.dying && ++this.fails < 4) this.play(); });
+  }
+  retire(t, sec) {
+    const now = ctx.currentTime;
+    t.g.gain.cancelScheduledValues(now); t.g.gain.setValueAtTime(t.g.gain.value, now); t.g.gain.linearRampToValueAtTime(0, now + sec);
+    t.dieAt = now + sec + 0.2; this.old.push(t);
+  }
+  kill(t) { try { t.el.pause(); t.el.removeAttribute('src'); t.el.load(); } catch (e) { /* ignore */ } off(t.src); off(t.g); }
+  schedule() {
+    const now = ctx.currentTime;
+    for (let i = this.old.length - 1; i >= 0; i--) if (now > this.old[i].dieAt) { this.kill(this.old[i]); this.old.splice(i, 1); }
+    const c = this.cur;
+    if (!c || this.dying) return;
+    const d = c.el.duration;
+    if (!c.xf && d && isFinite(d) && c.el.currentTime > d - 3.2) { c.xf = true; this.play(); }   // crossfade into the next track
+  }
+  fade(to, sec) {
+    const now = ctx.currentTime, g = this.out.gain;
+    g.cancelScheduledValues(now); g.setValueAtTime(g.value, now); g.linearRampToValueAtTime(to, now + sec);
+  }
+  fadeOut() { this.fade(0, 2.5); this.dying = true; this.dieAt = ctx.currentTime + 2.8; }
+  setCombat() { /* recorded tracks keep playing through fights */ }
+  pause(p) { for (const t of [this.cur, ...this.old]) if (t) { if (p) t.el.pause(); else quiet(t.el.play()); } }
+  destroy() { for (const t of [this.cur, ...this.old]) if (t) this.kill(t); this.cur = null; this.old.length = 0; off(this.out); off(this.wet); }
+}
+const hasDeck = (name) => !deckBlocked && !!(SM && SM.music && SM.music[name] && SM.music[name].length && HAS_WIN && window.Audio);
+
 const LOOKAHEAD = 0.3;     // seconds scheduled ahead on AudioContext time
 const TICK_MS = 50;        // wake-up period of the scheduler (timing comes from ctx time)
 const GESTURES = ['pointerdown', 'pointerup', 'touchend', 'keydown', 'click'];
@@ -1617,10 +1732,11 @@ function switchMusic(name) {
   if (curSong && !curSong.dying && curSong.name === name) return;
   if (curSong) curSong.fadeOut();
   curSong = null;
-  if (name && THEMES[name]) {
-    curSong = new Song(name);
+  if (name && (THEMES[name] || hasDeck(name))) {
+    const rec = hasDeck(name);
+    curSong = rec ? new Deck(name) : new Song(name);
     songs.push(curSong);
-    curSong.fade(THEME_TRIM[name] || 1, 2.5);
+    curSong.fade(rec ? 1 : (THEME_TRIM[name] || 1), 2.5);
     curSong.setCombat(want.combat, true);
   }
 }
@@ -1678,6 +1794,7 @@ function onRunning() {
   removeListeners();
   startTicker();
   applyWanted();
+  preloadSamples();
 }
 function onStateChange() {
   if (!ctx) return;
@@ -1687,6 +1804,7 @@ function onStateChange() {
 function onVisibility() {
   hidden = !!document.hidden;
   if (!ctx) return;
+  for (const s of songs) if (s.pause) s.pause(hidden);
   if (hidden) {
     if (ctx.state === 'running') quiet(ctx.suspend());          // pauses music scheduling + saves battery
   } else if (everUnlocked) {
@@ -1734,7 +1852,9 @@ export const Audio = {
   sfx(name, opts) {
     try {
       const fn = SFX[name];
-      if (!fn || !isRunning()) return;
+      if (!isRunning() || (!fn && !(SM && SM.sfx[name]))) return;
+      const smp = sampleFor(name);
+      if (!fn && !smp) return;                                          // recording-only sound still loading
       const o = opts || {};
       if (o.vol != null && !(Number(o.vol) > 0)) return;
       // throttle identical sounds: max THROTTLE_N within THROTTLE_MS
@@ -1747,7 +1867,8 @@ export const Audio = {
       if (activeVoices >= (LOW_PRIORITY.has(name) ? MAX_VOICES * 0.6 : MAX_VOICES)) return;
       arr.push(t);
       const v = new Voice(o, name);
-      fn(v);
+      if (smp) { v.wet(0.1); v.sample(smp.buf, smp.ent.v / (SFX_MAKEUP * (SFX_TRIM[name] || 1)), v.p * rand(0.95, 1.05)); }
+      if (fn && (!smp || smp.ent.layer)) fn(v);
       v.done();
     } catch (e) { /* ignore */ }
   },
@@ -1780,6 +1901,25 @@ export const Audio = {
   footstep(surface) {
     const s = STEP_SURFACES.has(surface) ? surface : 'grass';
     Audio.sfx('step_' + s, { vol: rand(0.75, 1), pitch: rand(0.92, 1.08) });
+  },
+
+  // recorded sounds / music / ambience (optional; synth fallback when absent)
+  loadManifest(base) {
+    try {
+      if (base) SBASE = base;
+      if (!HAS_WIN || typeof fetch === 'undefined') return;
+      fetch(SBASE + 'manifest.json').then((r) => (r.ok ? r.json() : null)).then((m) => {
+        if (!m) return;
+        SM = m;
+        if (isRunning()) { preloadSamples(); if (curSong && !(curSong instanceof Deck) && hasDeck(curSong.name)) { curSong.fadeOut(); curSong = null; applyWanted(); } }
+      }, () => {});
+    } catch (e) { /* ignore */ }
+  },
+
+  // debugging aid: what the music engine is doing right now
+  get state() {
+    const c = curSong && curSong.cur;
+    return { music: curSong ? curSong.name : null, recorded: !!c, playing: !!(c && !c.el.paused), at: c ? +c.el.currentTime.toFixed(1) : 0, ambient: curBed ? curBed.type : null, samples: [...SBUF.values()].filter(isBuf).length, blocked: deckBlocked };
   },
 
   get unlocked() { return !!(everUnlocked && ctx && ctx.state === 'running'); },

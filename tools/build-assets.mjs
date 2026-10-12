@@ -320,9 +320,25 @@ async function env() {
   await buildPack(it, path.join(OUT, 'items', 'items.glb'));
 }
 
+// ------------------------------------------------------------------ KayKit Forest Nature Pack (itch.io free tier, CC0)
+// Downloaded manually into tools/_src/itch/kaykit/forest (kaylousberg.itch.io/kaykit-forest).
+const FOREST_DIR = path.join(SRC, 'itch/kaykit/forest/KayKit_Forest_Nature_Pack_1.0_FREE/Assets/gltf');
+const FOREST = [
+  'Tree_1_A', 'Tree_1_B', 'Tree_1_C', 'Tree_2_A', 'Tree_2_B', 'Tree_2_C', 'Tree_2_D', 'Tree_2_E', 'Tree_3_A', 'Tree_3_B', 'Tree_3_C', 'Tree_4_A', 'Tree_4_B', 'Tree_4_C',
+  'Tree_Bare_1_A', 'Tree_Bare_1_B', 'Tree_Bare_1_C', 'Tree_Bare_2_A', 'Tree_Bare_2_B', 'Tree_Bare_2_C',
+  'Bush_1_A', 'Bush_1_C', 'Bush_1_E', 'Bush_2_A', 'Bush_2_C', 'Bush_3_A', 'Bush_3_B', 'Bush_4_A', 'Bush_4_C', 'Bush_4_E',
+  'Rock_1_A', 'Rock_1_C', 'Rock_1_E', 'Rock_1_G', 'Rock_1_J', 'Rock_1_M', 'Rock_2_A', 'Rock_2_C', 'Rock_2_E', 'Rock_2_G', 'Rock_3_A', 'Rock_3_C', 'Rock_3_E', 'Rock_3_H', 'Rock_3_K', 'Rock_3_N',
+  'Grass_1_A', 'Grass_1_B', 'Grass_1_C', 'Grass_2_A', 'Grass_2_B', 'Grass_2_C'];
+async function forest() {
+  console.log('forest');
+  const list = FOREST.map(n => [n.toLowerCase(), path.join(FOREST_DIR, n + '_Color1.gltf')]).filter(([, f]) => fs.existsSync(f) || console.warn('  missing', f));
+  await buildPack(list, path.join(OUT, 'env', 'forest.glb'));
+}
+
 const only = process.argv[2];
 if (!only || only === 'chars') await characters();
 if (!only || only === 'mobs') await creatures();
 if (!only || only === 'env') await env();
+if (!only || only === 'env' || only === 'forest') await forest();
 let total = 0; const walk = d => { for (const f of fs.readdirSync(d)) { const p = path.join(d, f); if (fs.statSync(p).isDirectory()) walk(p); else total += fs.statSync(p).size; } };
 walk(OUT); console.log('total', (total / 1048576).toFixed(2), 'MB');

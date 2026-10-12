@@ -1,7 +1,7 @@
 // Elyndra Online service worker: offline play + fast loads.
 // Same-origin files: network-first (updates show up immediately) with cache fallback for offline play.
 // Web fonts: cache-first.
-const CACHE = 'elyndra-v2';
+const CACHE = 'elyndra-v3';
 const CORE = ['./', './index.html', './css/style.css', './js/main.js', './lib/three.module.min.js', './lib/three.core.min.js', './manifest.webmanifest', './assets/icon.svg', './assets/icon-192.png'];
 
 self.addEventListener('install', e => {
@@ -17,6 +17,7 @@ self.addEventListener('fetch', e => {
   const sameOrigin = url.origin === self.location.origin;
   const fonts = url.hostname.endsWith('googleapis.com') || url.hostname.endsWith('gstatic.com');
   if (!sameOrigin && !fonts) return; // P2P relays etc. are never cached
+  if (req.headers.has('range')) return; // streamed music: partial (206) responses cannot be cached
   if (req.mode === 'navigate') {
     e.respondWith(fetch(req).then(res => { const copy = res.clone(); caches.open(CACHE).then(c => c.put(req, copy)); return res; }).catch(() => caches.match(req).then(r => r || caches.match('./index.html'))));
     return;
@@ -26,7 +27,7 @@ self.addEventListener('fetch', e => {
     return;
   }
   e.respondWith(fetch(req).then(res => {
-    if (res && res.ok) { const copy = res.clone(); caches.open(CACHE).then(c => c.put(req, copy)); }
+    if (res && res.status === 200) { const copy = res.clone(); caches.open(CACHE).then(c => c.put(req, copy)); }
     return res;
   }).catch(() => caches.match(req)));
 });

@@ -440,8 +440,8 @@ export const HUD = {
     c.beginPath(); c.arc(R, R, R, 0, Math.PI * 2); c.clip();
     c.fillStyle = W.dungeon ? '#141018' : '#1a2418'; c.fillRect(0, 0, S, S);
     const map = W.dungeon ? W.dungeon.mapCanvas : W.mapCanvas;
-    const size = W.dungeon ? W.dungeon.size : W.terrain.size;
-    if (map) {
+    const size = W.dungeon ? W.dungeon.size : W.terrain?.size;
+    if (map && size) {
       const k = map.width / size;
       const sx = (u.pos.x + size / 2 - span / 2) * k, sy = (u.pos.z + size / 2 - span / 2) * k;
       c.imageSmoothingEnabled = true;

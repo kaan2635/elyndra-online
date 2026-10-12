@@ -66,8 +66,8 @@ export function bake(url, name) {
 
 /** BufferGeometry of a baked entry, base at y=0, uniformly scaled to `height` (or by `scale`). */
 const geoCache = new Map();
-export function bakedGeometry(url, name, { height, scale = 1, tint = null } = {}) {
-  const key = url + '#' + name + '|' + height + '|' + scale + '|' + tint;
+export function bakedGeometry(url, name, { height, scale = 1, tint = null, leaf = null } = {}) {
+  const key = url + '#' + name + '|' + height + '|' + scale + '|' + tint + '|' + leaf;
   if (geoCache.has(key)) return geoCache.get(key);
   const b = bake(url, name); if (!b) return null;
   const s = height ? height / (b.h || 1) : scale;
@@ -75,6 +75,7 @@ export function bakedGeometry(url, name, { height, scale = 1, tint = null } = {}
   for (let i = 0; i < b.pos.length; i += 3) { pos[i] = b.pos[i] * s; pos[i + 1] = (b.pos[i + 1] - b.min.y) * s; pos[i + 2] = b.pos[i + 2] * s; }
   let col = b.col;
   if (tint != null) { const t = new THREE.Color(tint); col = new Float32Array(b.col); for (let i = 0; i < col.length; i += 3) { col[i] *= t.r; col[i + 1] *= t.g; col[i + 2] *= t.b; } }
+  if (leaf != null) col = recolorFoliage(col === b.col ? new Float32Array(b.col) : col, leaf);
   const g = new THREE.BufferGeometry();
   g.setAttribute('position', new THREE.BufferAttribute(pos, 3));
   g.setAttribute('color', new THREE.BufferAttribute(col, 3));
@@ -82,6 +83,19 @@ export function bakedGeometry(url, name, { height, scale = 1, tint = null } = {}
   g.userData.size = { h: b.h * s, sx: b.sx * s, sz: b.sz * s };
   geoCache.set(key, g);
   return g;
+}
+
+// Shift green foliage towards a biome's leaf colour (hue / saturation), keeping the model's own shading.
+const _h = {}, _lh = {};
+function recolorFoliage(col, leaf) {
+  const lc = new THREE.Color(leaf); lc.getHSL(_lh);
+  for (let i = 0; i < col.length; i += 3) {
+    _c.setRGB(col[i], col[i + 1], col[i + 2]); _c.getHSL(_h);
+    if (_h.h < 0.16 || _h.h > 0.45 || _h.s < 0.25) continue;             // only greens
+    _c.setHSL(_lh.h, Math.min(1, (_h.s + _lh.s) * 0.5), _h.l * 0.55 + _lh.l * 0.45);
+    col[i] = _c.r; col[i + 1] = _c.g; col[i + 2] = _c.b;
+  }
+  return col;
 }
 
 /** Append a baked entry to a Builder-like {pos,col,sIdx} with a transform and optional colour multiplier. */

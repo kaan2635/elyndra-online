@@ -4,9 +4,9 @@ import { ASSETS, ANIMS, WEAPONS, ITEMS } from './gmodel.js';
 import { MONSTER_LOOKS } from '../data/looks.js';
 import { MONSTERS } from '../data/monsters.js';
 
-export const ENV = { nature: 'env/nature.glb', town: 'env/town.glb', terrain: 'env/terrain.glb', grave: 'env/grave.glb', dungeon: 'env/dungeon.glb' };
+export const ENV = { nature: 'env/nature.glb', forest: 'env/forest.glb', town: 'env/town.glb', terrain: 'env/terrain.glb', grave: 'env/grave.glb', dungeon: 'env/dungeon.glb' };
 // heroes, NPCs, mounts and the environment used everywhere
-export const CORE = [ANIMS, WEAPONS, ITEMS, ENV.nature, ENV.town, ENV.terrain, ENV.grave,
+export const CORE = [ANIMS, WEAPONS, ITEMS, ENV.nature, ENV.forest, ENV.town, ENV.terrain, ENV.grave,
   ...Object.keys(ASSETS).filter(k => k.startsWith('char:')).map(k => ASSETS[k][0]),
   'mobs/horse.glb', 'mobs/horse_white.glb', 'mobs/wolf.glb', 'mobs/deer.glb', 'mobs/bunny.glb', 'mobs/sheep.glb', 'mobs/fox.glb'];
 

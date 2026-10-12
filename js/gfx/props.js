@@ -6,24 +6,27 @@ import { rng, shadeHex, mixHex } from '../core/util.js';
 import { Assets } from './assets.js';
 import { bakedGeometry } from './envmodels.js';
 
-// glTF replacements (Quaternius nature pack): type -> (zone prop opts) => [[model names], height range of the model]
-const NAT = 'env/nature.glb';
+// glTF replacements: KayKit Forest Nature Pack (itch.io, CC0) for temperate biomes, Quaternius nature pack
+// for snowy variants and desert plants. type -> (zone prop opts) => [[model names], height, pack] (null = procedural)
+const NAT = 'env/nature.glb', FOR = 'env/forest.glb';
 const range = (p, n, a = 1) => Array.from({ length: n }, (_, i) => `${p}_${i + a}`);
+const kk = (...n) => n.map(x => x.toLowerCase());
 const GLTF_PROPS = {
-  oak: o => [o.snow ? range('commontree_snow', 3) : o.autumn ? [...range('commontree_autumn', 3), 'commontree_1', 'commontree_2'] : range('commontree', 5), 6.2],
-  pine: o => [o.snow ? range('pinetree_snow', 4) : o.autumn ? [...range('pinetree_autumn', 2), 'pinetree_1', 'pinetree_3'] : range('pinetree', 5), 7.2],
-  birch: o => [o.snow ? ['birchtree_snow_1'] : o.autumn ? range('birchtree_autumn', 2) : range('birchtree', 3), 7],
-  willow: () => [range('willow', 3), 6.4],
+  oak: o => o.snow ? [range('commontree_snow', 3), 6.2] : [kk('Tree_1_A', 'Tree_1_B', 'Tree_1_C', 'Tree_2_C'), 6.6, FOR],
+  pine: o => o.snow ? [range('pinetree_snow', 4), 7.2] : [kk('Tree_4_A', 'Tree_4_B', 'Tree_4_C'), 7.8, FOR],
+  birch: o => o.snow ? [['birchtree_snow_1'], 7] : [kk('Tree_2_A', 'Tree_2_B', 'Tree_2_D', 'Tree_2_E'), 7, FOR],
+  willow: () => [kk('Tree_3_A', 'Tree_3_B', 'Tree_3_C'), 5.8, FOR],
   palm: () => [range('palmtree', 4), 7.4],
-  dead: o => [o.snow ? ['commontree_dead_snow_1'] : [...range('commontree_dead', 3), ...range('willow_dead', 2)], 5.8],
+  dead: o => o.snow ? [['commontree_dead_snow_1'], 5.8] : [kk('Tree_Bare_1_A', 'Tree_Bare_1_B', 'Tree_Bare_1_C', 'Tree_Bare_2_B'), 5.6, FOR],
   shadowtree: () => [['tree_dead_large', 'tree_dead_medium', 'tree_dead_large_decorated', 'tree_dead_small'], 7.5, 'env/grave.glb'],
   bones: () => [['bone_a', 'bone_b', 'bone_c', 'ribcage', 'skull'], 0.55, 'env/grave.glb'],
   grave: () => [['gravestone', 'gravemarker_a', 'gravemarker_b', 'grave_a', 'grave_b'], 1.5, 'env/grave.glb'],
   cactus: () => [[...range('cactus', 5), 'cactusflowers_2', 'cactusflowers_3'], 2.6],
-  rock: o => [o.snow ? range('rock_snow', 4) : o.moss ? [...range('rock_moss', 4), 'rock_1', 'rock_4'] : range('rock', 7), 1.3],
-  boulder: o => [o.snow ? range('rock_snow', 4) : o.moss ? range('rock_moss', 4) : ['rock_2', 'rock_3', 'rock_6'], 3.2],
-  lavarock: () => [range('rock', 7), 1.6],
-  bush: o => [o.snow ? range('bush_snow', 2) : ['bush_1', 'bush_2', 'bushberries_1', 'bushberries_2'], 1.4],
+  rock: o => o.snow ? [range('rock_snow', 4), 1.3] : [kk('Rock_1_A', 'Rock_1_C', 'Rock_1_E', 'Rock_1_J'), 1.2, FOR],
+  boulder: o => o.snow ? [range('rock_snow', 4), 3.2] : [kk('Rock_3_A', 'Rock_3_E', 'Rock_2_A', 'Rock_2_E'), 3.4, FOR],
+  lavarock: () => [kk('Rock_3_C', 'Rock_3_H', 'Rock_1_G', 'Rock_2_C'), 1.8, FOR],
+  bush: o => o.snow ? [range('bush_snow', 2), 1.4] : [kk('Bush_1_A', 'Bush_2_A', 'Bush_3_A', 'Bush_4_A'), 1.15, FOR],
+  grass: o => o.snow ? null : [kk('Grass_1_A', 'Grass_1_B', 'Grass_2_A', 'Grass_2_B'), 0.75, FOR],
   flowers: () => [['flowers', 'plant_2', 'flowers'], 0.6],
   fern: () => [['plant_1', 'plant_3', 'plant_4'], 0.8],
   reeds: () => [['plant_5', 'grass_2', 'wheat'], 1.0],
@@ -35,9 +38,13 @@ const GLTF_TINT = { lavarock: 0x6a5a58, shadowtree: 0x9a8ab8 };
 export const usesGltf = type => !!GLTF_PROPS[type];
 function gltfVariants(type, opts) {
   const f = GLTF_PROPS[type]; if (!f) return null;
-  const [names, h, pack = NAT] = f(opts);
+  const spec = f(opts); if (!spec) return null;
+  const [names, h, pack = NAT] = spec;
   if (!Assets.isLoaded(pack)) return null;
-  const out = names.slice(0, 4).map(n => bakedGeometry(pack, n, { height: h * (0.85 + (n.charCodeAt(n.length - 1) % 3) * 0.12), tint: GLTF_TINT[type] ?? null })).filter(Boolean);
+  // KayKit foliage takes the zone's leaf hue so one set of models serves every temperate biome
+  const zc = type === 'bush' ? opts.bush ?? opts.leaf : type === 'grass' ? opts.grass ?? opts.leaf : opts.leaf;
+  const leaf = pack === FOR && zc != null && !GLTF_TINT[type] ? zc : null;
+  const out = names.slice(0, 4).map(n => bakedGeometry(pack, n, { height: h * (0.85 + (n.charCodeAt(n.length - 1) % 3) * 0.12), tint: GLTF_TINT[type] ?? null, leaf })).filter(Boolean);
   return out.length ? out : null;
 }
 

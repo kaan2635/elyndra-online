@@ -35,7 +35,7 @@ async function boot() {
   setBoot(10, L('Ayarlar yükleniyor…|Loading settings…'));
   Save.load();
   try { setIconGlyphs(await (await fetch('./assets/icons.json')).json()); } catch (e) { console.warn('icons', e); }
-  Audio.init();
+  Audio.init(); Audio.loadManifest('assets/audio/');
   Audio.setVolumes({ master: G.settings.master, music: G.settings.music, sfx: G.settings.sfx, ambient: G.settings.ambient });
   setBoot(25, L('Grafik motoru başlatılıyor…|Starting renderer…'));
   const engine = new Engine(document.getElementById('gl'));
@@ -53,7 +53,7 @@ async function boot() {
   // optional modules (loaded lazily so a failure in one doesn't break boot)
   const mods = ['./data/zone_forest.js', './data/zone_desert.js', './data/zone_frost.js', './data/zone_ember.js', './data/zone_shadow.js', './game/npcs.js', './game/quests.js', './game/gathering.js', './game/bots.js', './game/party.js', './game/mounts.js', './game/weather.js',
     './game/dungeons.js', './game/crafting.js', './game/market.js', './game/guild.js', './game/achievements.js', './game/arena.js',
-    './game/mastery.js', './game/events.js', './game/bounties.js', './game/home.js', './game/powers.js', './game/portrait.js', './game/autohunt.js', './net/p2p.js',
+    './game/mastery.js', './game/events.js', './game/bounties.js', './game/home.js', './game/powers.js', './game/portrait.js', './game/autohunt.js', './game/soundfx.js', './net/p2p.js',
     './ui/windows.js', './ui/questwin.js', './ui/mapwin.js', './ui/settingswin.js', './ui/dialog.js', './ui/socialwin.js', './ui/craftwin.js', './ui/title.js'];
   let i = 0;
   for (const m of mods) {

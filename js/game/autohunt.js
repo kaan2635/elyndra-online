@@ -337,7 +337,13 @@ export const AutoHunt = {
       if (this.buffs(false)) return;
     }
     if (!t) t = this.pickTarget();
-    if (!t) { this.state = 'hunt'; return this.wander(); }
+    if (!t) {
+      this.state = 'hunt';
+      this.idleT = (this.idleT || 0) + 0.2;
+      if (this.idleT > 20 && !this.idleWarned) { this.idleWarned = true; G.ui.toast('autohunt', L('Av alanında uygun canavar yok — yarıçapı büyüt ya da canavarların yanında başlat.|No suitable monsters in the area — widen the radius or start next to monsters.'), '#ffcf6a'); }
+      return this.wander();
+    }
+    this.idleT = 0; this.idleWarned = false;
     this.state = 'fight';
     if (this.chase > G.time && this.path && this.stuckTarget === t && p.edgeDist(t) > 2.6) return; // walking around an obstacle
     this.chase = 0; this.path = null; pc.moveTarget = null;

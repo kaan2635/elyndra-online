@@ -60,6 +60,7 @@ export const Title = {
       h('p', L('Diğer maceracılar dünyayı canlı tutar; aynı anda oyunda olan gerçek oyuncularla P2P bağlantısı üzerinden sohbet edebilir ve birbirinizi görebilirsiniz.|Other adventurers keep the world alive; real players online at the same time can see each other and chat over a P2P connection.')),
       h('p.muted', L('Kayıtların tarayıcında saklanır. Ayarlar menüsünden dışa aktarıp başka cihaza taşıyabilirsin.|Your saves are stored in your browser. Export them from Settings to move to another device.')),
       h('p.muted', { style: { fontSize: '12.5px' } }, L('3B modeller: KayKit (Kay Lousberg) ve Quaternius — CC0. İkonlar: game-icons.net (Lorc, Delapouite ve diğerleri) — CC BY 3.0.|3D models: KayKit (Kay Lousberg) and Quaternius — CC0. Icons: game-icons.net (Lorc, Delapouite and others) — CC BY 3.0.')),
+      h('p.muted', { style: { fontSize: '12.5px' } }, L('Müzik: Abstraction (Tallbeard Studios) — CC0. Ses efektleri: Leonardo Calvo, heyheythere — CC BY 4.0; lentikula, John Carroll, CluckFox — CC0.|Music: Abstraction (Tallbeard Studios) — CC0. Sound effects: Leonardo Calvo, heyheythere — CC BY 4.0; lentikula, John Carroll, CluckFox — CC0.')),
       h('p.muted', 'Three.js (MIT) · Trystero (MIT)')));
   },
   // ------------------------------------------------------------ character select
