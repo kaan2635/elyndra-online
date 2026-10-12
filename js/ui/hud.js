@@ -70,6 +70,10 @@ export const HUD = {
       const b = h('button.mb', { onclick: () => UI.toggle(id), title: t(key) + ' (' + kb + ')' }, h('img', { src: uiIcon(ic), alt: '' }), h('span.mbl', t(key)), dot);
       b._dot = dot; this.menuBtns[id] = b; this.menubar.append(b);
     }
+    const ahDot = h('span.dot');
+    const ahBtn = h('button.mb.ahbtn', { onclick: () => UI.toggle('autohunt'), title: t('menuAuto') + ' (Q)' }, h('img', { src: uiIcon('autohunt'), alt: '' }), h('span.mbl', t('menuAuto')), ahDot);
+    this.menuBtns.autohunt = ahBtn; this.menubar.append(ahBtn);
+    G.events.on('autohunt', () => ahBtn.classList.toggle('on', !!G.autohunt?.on));
     const menuBtn = h('button.mb.menu', { onclick: () => this.toggleMenuGrid(), title: L('Menü|Menu') + ' (Esc)' }, h('span.burger', h('i'), h('i'), h('i')), h('span.mbl', L('Menü|Menu')));
     this.menuBtns.menu = menuBtn; this.menubar.append(menuBtn);
     this.goldEl = h('div#goldline');
@@ -205,6 +209,11 @@ export const HUD = {
       h('button.mbtn', { onclick: () => G.travel?.openWaystones(), title: t('waystone') }, h('img', { src: uiIcon('portal') })),
     );
     if (UI.touch) {
+      const ah = h('button.mbtn.ahbtn', { onclick: () => UI.toggle('autohunt'), title: t('menuAuto') }, h('img', { src: uiIcon('autohunt') }));
+      G.events.on('autohunt', () => ah.classList.toggle('on', !!G.autohunt?.on));
+      this.mmBtns.append(ah);
+    }
+    if (UI.touch) {
       this.mmBtns.prepend(h('button.mbtn.menu', { onclick: () => this.toggleMenuGrid(), title: L('Menü|Menu') }, h('span.burger', h('i'), h('i'), h('i'))));
       this.mmBtns.append(h('button.mbtn', { onclick: () => UI.toggle('bag'), title: t('menuBag') }, h('img', { src: uiIcon('backpack') })));
       this.mmBtns.append(h('button.mbtn', { onclick: () => { this.chat.classList.toggle('min'); }, title: 'Chat' }, h('img', { src: uiIcon('chat') })));
@@ -216,7 +225,7 @@ export const HUD = {
     if (this.menuGrid) { this.menuGrid.remove(); this.menuGrid = null; return; }
     const GROUPS = [
       [L('Karakter|Character'), [['char', 'person', 'menuChar', 'C'], ['bag', 'backpack', 'menuBag', 'B'], ['skills', 'book_open', 'menuSkills', 'K'], ['talents', 'talent', 'menuTalents', 'N'], ['collect', 'horse', 'menuCollect', 'V'], ['ach', 'trophy', 'menuAch', 'Y']]],
-      [L('Dünya|World'), [['quests', 'quest_exclaim', 'menuQuests', 'L'], ['map', 'map', 'menuMap', 'M'], ['dungeon', 'dungeon', 'menuDungeon', 'H'], ['arena', 'sword_cross', 'menuArena', 'Z'], ['home', 'house', 'menuHome', 'E']]],
+      [L('Dünya|World'), [['quests', 'quest_exclaim', 'menuQuests', 'L'], ['map', 'map', 'menuMap', 'M'], ['autohunt', 'autohunt', 'menuAuto', 'Q'], ['dungeon', 'dungeon', 'menuDungeon', 'H'], ['arena', 'sword_cross', 'menuArena', 'Z'], ['home', 'house', 'menuHome', 'E']]],
       [L('Ekonomi & Sosyal|Economy & Social'), [['craft', 'hammer_anvil', 'menuCraft', 'J'], ['market', 'scales', 'menuMarket', 'U'], ['social', 'users', 'menuSocial', 'O']]],
     ];
     const close = () => { this.menuGrid?.remove(); this.menuGrid = null; };

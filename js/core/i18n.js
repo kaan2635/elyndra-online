@@ -44,7 +44,7 @@ const STR = {
   menuChar: 'Karakter|Character', menuBag: 'Çanta|Bags', menuSkills: 'Yetenekler|Skills', menuTalents: 'Yetenek Ağacı|Talents',
   menuQuests: 'Görevler|Quests', menuMap: 'Harita|Map', menuSocial: 'Sosyal|Social', menuGuild: 'Lonca|Guild', menuCraft: 'Zanaat|Crafting',
   menuAch: 'Başarımlar|Achievements', menuCollect: 'Koleksiyon|Collection', menuMarket: 'Pazar|Market', menuMenu: 'Menü|Menu',
-  menuDungeon: 'Zindanlar|Dungeons', menuArena: 'Arena|Arena', menuTower: 'Sonsuz Kule|Endless Tower', menuHome: 'Evim|My Home',
+  menuDungeon: 'Zindanlar|Dungeons', menuArena: 'Arena|Arena', menuTower: 'Sonsuz Kule|Endless Tower', menuHome: 'Evim|My Home', menuAuto: 'Oto Av|Auto-Hunt',
   zoneEnter: '{0}|{0}', levelUp: 'Seviye Atladın!|Level Up!', reachedLevel: '{0}. seviyeye ulaştın|You reached level {0}',
   youDied: 'Öldün|You Died', respawn: 'Yeniden Doğ|Respawn', respawnHint: 'En yakın ışınlanma taşında dirileceksin.|You will revive at the nearest waystone.',
   notEnoughRes: 'Yeterli {0} yok|Not enough {0}', outOfRange: 'Menzil dışında|Out of range', noTarget: 'Hedef yok|No target',

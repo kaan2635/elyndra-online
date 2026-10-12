@@ -53,7 +53,7 @@ async function boot() {
   // optional modules (loaded lazily so a failure in one doesn't break boot)
   const mods = ['./data/zone_forest.js', './data/zone_desert.js', './data/zone_frost.js', './data/zone_ember.js', './data/zone_shadow.js', './game/npcs.js', './game/quests.js', './game/gathering.js', './game/bots.js', './game/party.js', './game/mounts.js', './game/weather.js',
     './game/dungeons.js', './game/crafting.js', './game/market.js', './game/guild.js', './game/achievements.js', './game/arena.js',
-    './game/mastery.js', './game/events.js', './game/bounties.js', './game/home.js', './game/powers.js', './game/portrait.js', './net/p2p.js',
+    './game/mastery.js', './game/events.js', './game/bounties.js', './game/home.js', './game/powers.js', './game/portrait.js', './game/autohunt.js', './net/p2p.js',
     './ui/windows.js', './ui/questwin.js', './ui/mapwin.js', './ui/settingswin.js', './ui/dialog.js', './ui/socialwin.js', './ui/craftwin.js', './ui/title.js'];
   let i = 0;
   for (const m of mods) {
@@ -103,6 +103,7 @@ function setupInput(input) {
       case 'KeyF': pc?.interactNearest(); return true;
       case 'KeyR': if (pc) pc.autoRun = !pc.autoRun; return true;
       case 'KeyT': G.mounts?.toggle(); return true;
+      case 'KeyQ': G.autohunt?.toggle(); return true;
       case 'KeyX': if (G.player?.sitting) pc.stand(); else pc?.sit(); return true;
       case 'Enter': HUD.focusChat(); return true;
       case 'Escape':
@@ -166,6 +167,14 @@ G.addSystem = fn => G.systemsUpdate.push(fn);
 G.startSession = startSession; G.endSession = endSession; G.newCharacter = newCharacter;
 window.ELYNDRA = G; // handy for debugging from the console
 // deterministic stepping for automated tests (works while the tab is hidden)
+// browsers pause requestAnimationFrame in hidden tabs: keep simulating (without rendering) while auto-hunt runs
+let bgLast = 0;
+setInterval(() => {
+  const now = performance.now();
+  if (!document.hidden || G.mode !== 'game' || !G.autohunt?.on) { bgLast = now; return; }
+  const n = Math.min(300, Math.round((now - bgLast) / 1000 * 30)); bgLast = now;
+  for (let i = 0; i < n; i++) { G.dt = 1 / 30; G.time += 1 / 30; try { frame(1 / 30, true); } catch (e) { console.error(e); break; } G.input.endFrame(); }
+}, 1000);
 G.step = (n = 1, dt = 1 / 30) => { for (let i = 0; i < n; i++) { G.dt = dt; G.time += dt; frame(dt, i < n - 1); G.input.endFrame(); } };
 
 boot().catch(e => {

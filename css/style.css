@@ -444,3 +444,61 @@ body.touch.portrait #mskills .mr-target { right: 112px !important; bottom: 236px
 .fishbar { position: relative; width: 100%; height: 28px; border-radius: 14px; background: linear-gradient(90deg, #1a3050, #10203a); border: 1px solid #4a7ab8; overflow: hidden; }
 .fishbar .zone { position: absolute; top: 0; bottom: 0; background: rgba(90, 220, 120, .45); border-left: 2px solid #8affa0; border-right: 2px solid #8affa0; }
 .fishbar .fish { position: absolute; top: 3px; width: 22px; height: 22px; margin-left: -11px; }
+
+/* ---------------------------------------------------------------- auto-hunt */
+#ahpill { position: absolute; left: 50%; top: calc(96px + var(--safe-t)); transform: translateX(-50%); display: none; align-items: center; gap: 10px; padding: 6px 6px 6px 10px; border-radius: 999px; background: rgba(14, 30, 20, .78); backdrop-filter: blur(10px); border: 1px solid rgba(110, 230, 150, .55); box-shadow: 0 0 18px rgba(80, 220, 130, .25), var(--shadow); cursor: pointer; pointer-events: auto; white-space: nowrap; }
+#ahpill.on { display: flex; }
+#ahpill img { width: 26px; height: 26px; border-radius: 8px; animation: ahspin 4s linear infinite; }
+#ahpill .ah-txt { display: flex; flex-direction: column; line-height: 1.15; }
+#ahpill .ah-txt b { font-size: 12.5px; color: #9affbf; letter-spacing: .02em; }
+#ahpill .ah-txt span { font-size: 11.5px; color: var(--ink2); }
+#ahpill .ah-stop { width: 30px; height: 30px; border-radius: 50%; border: 1px solid #ff9a92; background: linear-gradient(180deg, #f2645a, #c63b33); color: #fff; font-size: 12px; cursor: pointer; }
+@keyframes ahspin { 0%, 100% { transform: rotate(0); } 50% { transform: rotate(8deg) scale(1.06); } }
+#menubar .mb.ahbtn.on, .mbtn.ahbtn.on { border-color: rgba(110, 230, 150, .8); box-shadow: 0 0 14px rgba(80, 220, 130, .45); background: rgba(30, 70, 45, .85); }
+.ah-head { display: flex; align-items: center; gap: 12px; padding: 12px; border-radius: 14px; background: rgba(255, 255, 255, .04); border: 1px solid var(--line2); margin-bottom: 10px; }
+.ah-head.on { border-color: rgba(110, 230, 150, .5); background: rgba(60, 200, 110, .08); }
+.ah-head .btn { min-width: 120px; }
+.ah-state { flex: 1; display: flex; align-items: center; gap: 10px; min-width: 0; }
+.ah-state .dot { width: 12px; height: 12px; border-radius: 50%; background: #6a6f7a; flex: none; }
+.ah-head.on .ah-state .dot { background: #5ff08f; box-shadow: 0 0 10px #5ff08f; animation: ahpulse 1.4s ease-in-out infinite; }
+.ah-state b { display: block; font-size: 15px; }
+.ah-state small { display: block; color: var(--ink3); font-size: 11.5px; margin-top: 2px; white-space: normal; }
+@keyframes ahpulse { 50% { opacity: .45; } }
+.ah-stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; margin-bottom: 6px; }
+.ah-cell { padding: 7px 8px; border-radius: 10px; background: rgba(255, 255, 255, .04); border: 1px solid var(--line2); min-width: 0; }
+.ah-cell small { display: block; font-size: 10.5px; color: var(--ink3); text-transform: uppercase; letter-spacing: .04em; }
+.ah-cell b { display: block; font-size: 15px; }
+.ah-cell em { display: block; font-style: normal; font-size: 10.5px; color: var(--good); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.ah-h { margin: 14px 0 4px; font-family: var(--title); color: var(--accent); font-size: 13.5px; font-weight: 700; }
+.ah-row { display: flex; align-items: center; gap: 10px; padding: 6px 0; border-bottom: 1px solid rgba(255, 255, 255, .04); }
+.ah-lab { flex: 1; min-width: 0; font-size: 13px; }
+.ah-lab small { display: block; color: var(--ink3); font-size: 11px; }
+.ah-sl { display: flex; align-items: center; gap: 8px; }
+.ah-sl input { width: 130px; accent-color: var(--accent); }
+.ah-val { min-width: 64px; text-align: right; font-weight: 800; font-size: 12.5px; color: var(--ink); }
+.ah-seg { display: inline-flex; flex-wrap: wrap; border: 1px solid var(--edge); border-radius: 10px; overflow: hidden; }
+.ah-seg button { border: 0; background: transparent; color: var(--ink2); padding: 6px 10px; font: 700 12px var(--font); cursor: pointer; }
+.ah-seg button.on { background: var(--accent-soft); color: var(--accent); }
+.ah-sw { position: relative; display: inline-block; width: 40px; height: 22px; flex: none; cursor: pointer; }
+.ah-sw input { opacity: 0; width: 0; height: 0; position: absolute; }
+.ah-sw i { position: absolute; inset: 0; border-radius: 999px; background: rgba(255, 255, 255, .14); transition: background .15s; }
+.ah-sw i::after { content: ''; position: absolute; left: 3px; top: 3px; width: 16px; height: 16px; border-radius: 50%; background: #fff; transition: transform .15s; }
+.ah-sw input:checked + i { background: #3fbf6e; }
+.ah-sw input:checked + i::after { transform: translateX(18px); }
+.ah-note { font-size: 12px; margin: 4px 0 8px; }
+.ah-skills { display: flex; flex-direction: column; gap: 5px; margin-top: 6px; }
+.ah-sk { display: flex; align-items: center; gap: 10px; padding: 6px 8px; border-radius: 10px; background: rgba(255, 255, 255, .04); border: 1px solid var(--line2); }
+.ah-sk.dim { opacity: .55; }
+.ah-sk img { width: 34px; height: 34px; border-radius: 8px; }
+.ah-skn { flex: 1; min-width: 0; } .ah-skn b { display: block; font-size: 13px; } .ah-skn small { color: var(--ink3); font-size: 11px; }
+.ah-up { width: 30px; height: 30px; border-radius: 8px; border: 1px solid var(--edge); background: rgba(255, 255, 255, .06); color: var(--ink2); cursor: pointer; }
+.ah-up:disabled { opacity: .25; cursor: default; }
+@media (max-width: 760px), (max-height: 520px) {
+  .ah-stats { grid-template-columns: repeat(2, 1fr); }
+  .ah-sl input { width: 96px; }
+  .ah-row { flex-wrap: wrap; }
+  #ahpill { top: calc(84px + var(--safe-t)); }
+}
+body.portrait #ahpill { left: calc(10px + var(--safe-l)); transform: none; max-width: 210px; top: calc(80px + var(--safe-t)); }
+body.portrait #ahpill .ah-txt { min-width: 0; overflow: hidden; }
+body.portrait #ahpill .ah-txt b, body.portrait #ahpill .ah-txt span { overflow: hidden; text-overflow: ellipsis; }
